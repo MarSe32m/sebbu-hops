@@ -12,13 +12,32 @@ import DequeModule
 import Algorithms
 
 public extension HOPSHierarchy {
-    
+    /// Solve the linear HOPS equation for this hierarchy
+    /// - Parameters:
+    ///   - start: Start time of the simulation. Default value is 0.0
+    ///   - end: End time of the simulation
+    ///   - initialState: Initial state of the system
+    ///   - H: The Hamiltonian operator
+    ///   - z: The environment Gaussian noise process
+    ///   - customOperators: Custom linear operators for the diagonal part of the hierarchy
+    ///   - stepSize: Simulation step size. Default value is 0.01
+    /// - Returns: A tuple containing the time points and the corresponding system state vectors
     @inlinable
     @inline(__always)
     func solveLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
         solveLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, customOperators: customOperators, stepSize: stepSize)
     }
     
+    /// Solve the linear HOPS equation for this hierarchy
+    /// - Parameters:
+    ///   - start: Start time of the simulation. Default value is 0.0
+    ///   - end: End time of the simulation
+    ///   - initialState: Initial state of the system
+    ///   - H: The time dependent Hamiltonian operator
+    ///   - z: The environment Gaussian noise process
+    ///   - customOperators: Custom linear operators for the diagonal part of the hierarchy
+    ///   - stepSize: Simulation step size. Default value is 0.01
+    /// - Returns: A tuple containing the time points and the corresponding system state vectors
     @inlinable
     @inline(__always)
     func solveLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
@@ -93,12 +112,37 @@ public extension HOPSHierarchy {
         }
     }
     
+    //MARK: SDE version
+    /// Solve the linear HOPS equation for this hierarchy
+    /// - Parameters:
+    ///   - start: Start time of the simulation. Default value is 0.0
+    ///   - end: End time of the simulation
+    ///   - initialState: Initial state of the system
+    ///   - H: The Hamiltonian operator
+    ///   - z: The environment Gaussian noise process
+    ///   - w: The white noise process
+    ///   - wOperator: The operator corresponding to the white noise process
+    ///   - customOperators: Custom linear operators for the diagonal part of the hierarchy
+    ///   - stepSize: Simulation step size. Default value is 0.01
+    /// - Returns: A tuple containing the time points and the corresponding system state vectors
     @inlinable
     @inline(__always)
     func solveLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         solveLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, w: w, wOperator: wOperator, customOperators: customOperators, stepSize: stepSize)
     }
     
+    /// Solve the linear HOPS equation for this hierarchy
+    /// - Parameters:
+    ///   - start: Start time of the simulation. Default value is 0.0
+    ///   - end: End time of the simulation
+    ///   - initialState: Initial state of the system
+    ///   - H: The tmie dependent Hamiltonian operator
+    ///   - z: The environment Gaussian noise process
+    ///   - w: The white noise process
+    ///   - wOperator: The operator corresponding to the white noise process
+    ///   - customOperators: Custom linear operators for the diagonal part of the hierarchy
+    ///   - stepSize: Simulation step size. Default value is 0.01
+    /// - Returns: A tuple containing the time points and the corresponding system state vectors
     @inlinable
     @inline(__always)
     func solveLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
