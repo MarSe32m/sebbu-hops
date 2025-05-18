@@ -27,7 +27,7 @@ func bathCorrelationFunction(A: Double, omegaC: Double, t: Double) -> Complex<Do
     Quad.integrate(a: 0, b: .infinity) { .init(length: spectralDensity(omega: $0, A: A, omegaC: omegaC), phase: -$0 * t) }
 }
 
-public func IBMExample(realizations: Int, plotBCF: Bool = false) {
+public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool = false) {
     #if os(macOS)
     PythonLibrary.useLibrary(at: "/Library/Frameworks/Python.framework/Versions/3.12/Python")
     #elseif os(Linux)
@@ -71,7 +71,7 @@ public func IBMExample(realizations: Int, plotBCF: Bool = false) {
     let hierarchy = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 4)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, Complex(renormalizationEnergy)], rows: 2, columns: 2)
-    let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: 7) { omega in
+    let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
         spectralDensity(omega: omega, A: A, omegaC: omegaC)
     }
     let noises = zGenerator.generateParallel(count: realizations)
@@ -79,14 +79,14 @@ public func IBMExample(realizations: Int, plotBCF: Bool = false) {
     
     let linearStart = ContinuousClock().now
     let linearTrajectories = noises.parallelMap { z in
-        hierarchy.solveLinear(end: 7, initialState: initialState, H: H, z: z)
+        hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, z: z, stepSize: 0.01)
     }
     let linearEnd = ContinuousClock().now
     print("Linear time: \(linearEnd - linearStart)")
     
     let nonLinearStart = ContinuousClock().now
     let nonLinearTrajectories = noises.parallelMap { z in
-        hierarchy.solveNonLinear(end: 7, initialState: initialState, H: H, z: z)
+        hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, stepSize: 0.01)
     }
     let nonLinerEnd = ContinuousClock().now
     print("Non-linear time: \(nonLinerEnd - nonLinearStart)")
