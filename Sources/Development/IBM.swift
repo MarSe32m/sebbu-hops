@@ -28,14 +28,6 @@ func bathCorrelationFunction(A: Double, omegaC: Double, t: Double) -> Complex<Do
 }
 
 public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool = false) {
-    #if os(macOS)
-    PythonLibrary.useLibrary(at: "/Library/Frameworks/Python.framework/Versions/3.12/Python")
-    #elseif os(Linux)
-    //PythonLibrary.useLibrary(at: "/usr/lib64/libpython3.11.so.1.0")
-    PythonLibrary.useLibrary(at: "/usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0")
-    #elseif os(Windows)
-    //TODO: Set the library path on Windows machine
-    #endif
     let A = 0.027
     let omegaC = 1.447
     
@@ -74,7 +66,10 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
     let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
         spectralDensity(omega: omega, A: A, omegaC: omegaC)
     }
+    let noiseGenerationStart = ContinuousClock().now
     let noises = zGenerator.generateParallel(count: realizations)
+    let noiseGenerationEnd = ContinuousClock().now
+    print("Noise generation time: \(noiseGenerationEnd - noiseGenerationStart)")
     let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
     
     let linearStart = ContinuousClock().now

@@ -94,7 +94,6 @@ public extension HOPSHierarchy {
                 for customOperator in customOperators {
                     Heff.add(customOperator(t, systemState))
                 }
-                result[0].zeroComponents()
                 result[0].components.withUnsafeMutableBufferPointer { resultBuffer in
                     currentState.components.withUnsafeBufferPointer { currentStateBuffer in
                         var resultPointer = resultBuffer.baseAddress!
