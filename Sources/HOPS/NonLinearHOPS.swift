@@ -9,7 +9,6 @@ import SebbuScience
 import Numerics
 import SebbuCollections
 import DequeModule
-import Algorithms
 
 public extension HOPSHierarchy {
     /// Solve the non-linear HOPS equation for this hierarchy
@@ -39,7 +38,6 @@ public extension HOPSHierarchy {
     ///   - stepSize: Simulation step size. Default value is 0.01
     /// - Returns: A tuple containing the time points and the corresponding **unnormalized** system state vectors
     @inlinable
-    @inline(__always)
     func solveNonLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
         let dimension = initialState.count
         var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
@@ -68,22 +66,9 @@ public extension HOPSHierarchy {
                 var shift: Complex<Double> = .zero
             
                 result[1].components.withUnsafeMutableBufferPointer { result in
-                    var i = 0
-                    while i &+ 4 <= result.count {
-                        result[i] = Relaxed.multiplyAdd(GConjugateVector[i], LDaggerExpectation, Relaxed.product(WConjugateVector[i], xi[i]))
-                        result[i &+ 1] = Relaxed.multiplyAdd(GConjugateVector[i &+ 1], LDaggerExpectation, Relaxed.product(WConjugateVector[i &+ 1], xi[i &+ 1]))
-                        result[i &+ 2] = Relaxed.multiplyAdd(GConjugateVector[i &+ 2], LDaggerExpectation, Relaxed.product(WConjugateVector[i &+ 2], xi[i &+ 2]))
-                        result[i &+ 3] = Relaxed.multiplyAdd(GConjugateVector[i &+ 3], LDaggerExpectation, Relaxed.product(WConjugateVector[i &+ 3], xi[i &+ 3]))
-                        shift = Relaxed.sum(shift, xi[i])
-                        shift = Relaxed.sum(shift, xi[i &+ 1])
-                        shift = Relaxed.sum(shift, xi[i &+ 2])
-                        shift = Relaxed.sum(shift, xi[i &+ 3])
-                        i &+= 4
-                    }
-                    while i < result.count {
+                    for i in result.indices {
                         result[i] = Relaxed.multiplyAdd(GConjugateVector[i], LDaggerExpectation, Relaxed.product(WConjugateVector[i], xi[i]))
                         shift = Relaxed.sum(shift, xi[i])
-                        i &+= 1
                     }
                 }
                 let zTilde = z(t).conjugate + shift
@@ -94,6 +79,7 @@ public extension HOPSHierarchy {
                 for customOperator in customOperators {
                     Heff.add(customOperator(t, systemState))
                 }
+                let kWSpan = kWArray.span
                 result[0].components.withUnsafeMutableBufferPointer { resultBuffer in
                     currentState.components.withUnsafeBufferPointer { currentStateBuffer in
                         var resultPointer = resultBuffer.baseAddress!
@@ -102,16 +88,9 @@ public extension HOPSHierarchy {
                         var kWIndex = 0
                         while index < resultBuffer.count {
                             Heff.dot(currentStatePointer, into: resultPointer)
-                            let kW = kWArray[kWIndex]
-                            var i = 0
-                            while i &+ 2 <= dimension {
+                            let kW = kWSpan[unchecked: kWIndex]
+                            for i in 0..<dimension {
                                 resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
-                                resultPointer[i &+ 1] = Relaxed.multiplyAdd(kW, currentStatePointer[i &+ 1], resultPointer[i &+ 1])
-                                i &+= 2
-                            }
-                            while i < dimension {
-                                resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
-                                i &+= 1
                             }
                             resultPointer += dimension
                             currentStatePointer += dimension
@@ -177,7 +156,6 @@ public extension HOPSHierarchy {
     ///   - stepSize: Simulation step size. Default value is 0.01
     /// - Returns: A tuple containing the time points and the corresponding **unnormalized** system state vectors
     @inlinable
-    @inline(__always)
     func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         let dimension = initialState.count
         var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
@@ -206,22 +184,9 @@ public extension HOPSHierarchy {
                 var shift: Complex<Double> = .zero
             
                 result[1].components.withUnsafeMutableBufferPointer { result in
-                    var i = 0
-                    while i &+ 4 <= result.count {
-                        result[i] = Relaxed.multiplyAdd(GConjugateVector[i], LDaggerExpectation, Relaxed.product(WConjugateVector[i], xi[i]))
-                        result[i &+ 1] = Relaxed.multiplyAdd(GConjugateVector[i &+ 1], LDaggerExpectation, Relaxed.product(WConjugateVector[i &+ 1], xi[i &+ 1]))
-                        result[i &+ 2] = Relaxed.multiplyAdd(GConjugateVector[i &+ 2], LDaggerExpectation, Relaxed.product(WConjugateVector[i &+ 2], xi[i &+ 2]))
-                        result[i &+ 3] = Relaxed.multiplyAdd(GConjugateVector[i &+ 3], LDaggerExpectation, Relaxed.product(WConjugateVector[i &+ 3], xi[i &+ 3]))
-                        shift = Relaxed.sum(shift, xi[i])
-                        shift = Relaxed.sum(shift, xi[i &+ 1])
-                        shift = Relaxed.sum(shift, xi[i &+ 2])
-                        shift = Relaxed.sum(shift, xi[i &+ 3])
-                        i &+= 4
-                    }
-                    while i < result.count {
+                    for i in result.indices {
                         result[i] = Relaxed.multiplyAdd(GConjugateVector[i], LDaggerExpectation, Relaxed.product(WConjugateVector[i], xi[i]))
                         shift = Relaxed.sum(shift, xi[i])
-                        i &+= 1
                     }
                 }
                 let zTilde = z(t).conjugate + shift
@@ -232,7 +197,7 @@ public extension HOPSHierarchy {
                 for customOperator in customOperators {
                     Heff.add(customOperator(t, systemState))
                 }
-                result[0].zeroComponents()
+                let kWSpan = kWArray.span
                 result[0].components.withUnsafeMutableBufferPointer { resultBuffer in
                     currentState.components.withUnsafeBufferPointer { currentStateBuffer in
                         var resultPointer = resultBuffer.baseAddress!
@@ -241,16 +206,9 @@ public extension HOPSHierarchy {
                         var kWIndex = 0
                         while index < resultBuffer.count {
                             Heff.dot(currentStatePointer, into: resultPointer)
-                            let kW = kWArray[kWIndex]
-                            var i = 0
-                            while i &+ 2 <= dimension {
+                            let kW = kWSpan[unchecked: kWIndex]
+                            for i in 0..<dimension {
                                 resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
-                                resultPointer[i &+ 1] = Relaxed.multiplyAdd(kW, currentStatePointer[i &+ 1], resultPointer[i &+ 1])
-                                i &+= 2
-                            }
-                            while i < dimension {
-                                resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
-                                i &+= 1
                             }
                             resultPointer += dimension
                             currentStatePointer += dimension

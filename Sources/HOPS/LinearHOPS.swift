@@ -9,7 +9,6 @@ import SebbuScience
 import Numerics
 import SebbuCollections
 import DequeModule
-import Algorithms
 
 public extension HOPSHierarchy {
     /// Solve the linear HOPS equation for this hierarchy
@@ -39,7 +38,6 @@ public extension HOPSHierarchy {
     ///   - stepSize: Simulation step size. Default value is 0.01
     /// - Returns: A tuple containing the time points and the corresponding system state vectors
     @inlinable
-    @inline(__always)
     func solveLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
         precondition(initialState.count == dimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial state")
         var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
@@ -63,6 +61,7 @@ public extension HOPSHierarchy {
                 for customOperator in customOperators {
                     Heff.add(customOperator(t, systemState))
                 }
+                let kWSpan = kWArray.span
                 result.components.withUnsafeMutableBufferPointer { resultBuffer in
                     currentState.components.withUnsafeBufferPointer { currentStateBuffer in
                         var resultPointer = resultBuffer.baseAddress!
@@ -71,16 +70,9 @@ public extension HOPSHierarchy {
                         var kWIndex = 0
                         while index < resultBuffer.count {
                             Heff.dot(currentStatePointer, into: resultPointer)
-                            let kW = kWArray[kWIndex]
-                            var i = 0
-                            while i &+ 2 <= dimension {
+                            let kW = kWSpan[unchecked: kWIndex]
+                            for i in 0..<dimension {
                                 resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
-                                resultPointer[i &+ 1] = Relaxed.multiplyAdd(kW, currentStatePointer[i &+ 1], resultPointer[i &+ 1])
-                                i &+= 2
-                            }
-                            while i < dimension {
-                                resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
-                                i &+= 1
                             }
                             resultPointer += dimension
                             currentStatePointer += dimension
@@ -144,7 +136,6 @@ public extension HOPSHierarchy {
     ///   - stepSize: Simulation step size. Default value is 0.01
     /// - Returns: A tuple containing the time points and the corresponding system state vectors
     @inlinable
-    @inline(__always)
     func solveLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         precondition(initialState.count == dimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial state")
         var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
@@ -168,6 +159,7 @@ public extension HOPSHierarchy {
                 for customOperator in customOperators {
                     Heff.add(customOperator(t, systemState))
                 }
+                let kWSpan = kWArray.span
                 result.components.withUnsafeMutableBufferPointer { resultBuffer in
                     currentState.components.withUnsafeBufferPointer { currentStateBuffer in
                         var resultPointer = resultBuffer.baseAddress!
@@ -176,16 +168,9 @@ public extension HOPSHierarchy {
                         var kWIndex = 0
                         while index < resultBuffer.count {
                             Heff.dot(currentStatePointer, into: resultPointer)
-                            let kW = kWArray[kWIndex]
-                            var i = 0
-                            while i &+ 2 <= dimension {
+                            let kW = kWSpan[unchecked: kWIndex]
+                            for i in 0..<dimension {
                                 resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
-                                resultPointer[i &+ 1] = Relaxed.multiplyAdd(kW, currentStatePointer[i &+ 1], resultPointer[i &+ 1])
-                                i &+= 2
-                            }
-                            while i < dimension {
-                                resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
-                                i &+= 1
                             }
                             resultPointer += dimension
                             currentStatePointer += dimension

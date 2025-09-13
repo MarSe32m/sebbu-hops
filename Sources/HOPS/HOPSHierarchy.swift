@@ -187,7 +187,7 @@ public struct HOPSHierarchy: Sendable {
         return CSRMatrix(from: lilMatrix)
     }
     
-    /// Map linear HOPS a trajectory to density matrix
+    /// Map a linear HOPS trajectory to density matrix
     /// - Parameter trajectory: The linear HOPS trajectory to map to density matrix
     /// - Returns: Array of density matrices
     @inlinable

@@ -37,7 +37,7 @@ public enum tPFD {
         
         // Least squares fitting
         var A = Matrix<Complex<Double>>.zeros(rows: terms, columns: terms)
-        var a = Vector<Complex<Double>>(.init(repeating: .zero, count: terms))
+        var a = Vector<Complex<Double>>.zero(terms)
         for mu in 0..<terms {
             for nu in mu..<terms {
                 let z_mu = z[mu]

@@ -1,5 +1,5 @@
 {
-  "originHash" : "e1b8eb0fdabc15362b2ed81325d570d67471071811616839569cb2a276b8c217",
+  "originHash" : "45a4408e3937979e7a38d0569536eeba650f82c070e25a34b88cdcd97e44107c",
   "pins" : [
     {
       "identity" : "pythonkit",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/pvieito/PythonKit",
       "state" : {
         "branch" : "master",
-        "revision" : "6fee7617cfa910fbac7035276e295ba967adbbb4"
+        "revision" : "2728bfb247e9662f492c43be01c7f1976bca5c1b"
       }
     },
     {
@@ -25,7 +25,7 @@
       "location" : "https://github.com/MarSe32m/sebbu-science",
       "state" : {
         "branch" : "main",
-        "revision" : "63a1e93e5b11ca33ce66c9c1c1d8b2fa0e5c786e"
+        "revision" : "b0914fbedf00fbbc9d48aaef38750dc6f6bc1277"
       }
     },
     {
@@ -34,7 +34,7 @@
       "location" : "https://github.com/apple/swift-algorithms",
       "state" : {
         "branch" : "main",
-        "revision" : "0e939e7bb92d5305022f0f981973c2de5ee543b4"
+        "revision" : "f6ce64a70a6979e7e882b91839c53df0dc3cb47d"
       }
     },
     {
@@ -42,17 +42,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections.git",
       "state" : {
-        "revision" : "671108c96644956dddcd89dd59c203dcdb36cec7",
-        "version" : "1.1.4"
+        "revision" : "8c0c0a8b49e080e54e5e328cc552821ff07cd341",
+        "version" : "1.2.1"
       }
     },
     {
       "identity" : "swift-numerics",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-numerics",
+      "location" : "https://github.com/apple/swift-numerics.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "2b458e8aeb9cf3f3a156f54ba427b9f101a4511a"
+        "revision" : "bbadd4b853a33fd78c4ae977d17bb2af15eb3f2a",
+        "version" : "1.1.0"
       }
     }
   ],

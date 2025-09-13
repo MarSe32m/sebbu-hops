@@ -23,8 +23,14 @@ func spectralDensityByOmega(omega: Double, A: Double, omegaC: Double) -> Double 
 
 @inlinable
 @inline(__always)
-func bathCorrelationFunction(A: Double, omegaC: Double, t: Double) -> Complex<Double> {
-    Quad.integrate(a: 0, b: .infinity) { .init(length: spectralDensity(omega: $0, A: A, omegaC: omegaC), phase: -$0 * t) }
+func bathCorrelationFunction(A: Double, omegaC: Double, t: Double, temperature: Double = .zero) -> Complex<Double> {
+    let beta: Double = temperature == .zero ? .infinity : 1 / temperature
+    return Quad.integrate(a: 0, b: .infinity) { omega in
+        Complex(
+            Double.coth(beta * omega / 2.0) * spectralDensity(omega: omega, A: A, omegaC: omegaC) * Double.cos(-omega * t),
+            spectralDensity(omega: omega, A: A, omegaC: omegaC) * Double.sin(-omega * t)
+        )    
+    }
 }
 
 public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool = false) {
@@ -36,17 +42,21 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
     }
     
     let (G, W) = {
-        let tSpace = [Double].linearSpace(0, 10, 501)
-        let bcf = tSpace.map { bathCorrelationFunction(A: A, omegaC: omegaC, t: $0) }
-        let (G, W) = tPFD.fit(x: tSpace, y: bcf, realTerms: 4, imaginaryTerms: 4)
-        let bcfExponentials = tSpace.map { t in
-            var result: Complex<Double> = .zero
-            for i in 0..<G.count {
-                result += G[i] * .exp(-t * W[i])
-            }
-            return result
-        }
+        let T: Double = .zero
+        let tSpace = [Double].linearSpace(0, 10, 500)
+        let bcf = tSpace.map { bathCorrelationFunction(A: A, omegaC: omegaC, t: $0, temperature: T) }
+        //let (G, W) = tPFD.fit(x: tSpace, y: bcf, realTerms: 3, imaginaryTerms: 3)
+        let (G, W) = MatrixPencil.fit(y: bcf, dt: tSpace[1] - tSpace[0], terms: 2)
         if plotBCF {
+            let tSpace = [Double].linearSpace(0, 20, 501)
+            let bcf = tSpace.map { bathCorrelationFunction(A: A, omegaC: omegaC, t: $0, temperature: T) }
+            let bcfExponentials = tSpace.map { t in
+                var result: Complex<Double> = .zero
+                for i in 0..<G.count {
+                    result += G[i] * .exp(-t * W[i])
+                }
+                return result
+            }
             plt.figure()
             plt.plot(x: tSpace, y: bcf.real, label: "Real")
             plt.plot(x: tSpace, y: bcf.imaginary, label: "Imaginary")
