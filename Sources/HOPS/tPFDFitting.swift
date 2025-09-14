@@ -36,25 +36,32 @@ public enum tPFD {
         let W = z.map { Complex<Double>(-1.0 / dt * Double.log($0.length), -1.0 / dt * $0.phase) }
         
         // Least squares fitting
-        var A = Matrix<Complex<Double>>.zeros(rows: terms, columns: terms)
-        var a = Vector<Complex<Double>>.zero(terms)
-        for mu in 0..<terms {
-            for nu in mu..<terms {
-                let z_mu = z[mu]
-                let z_nu = z[nu]
-                let z_mu_z_nu = z_mu * z_nu
-                var A_nu_mu: Complex<Double> = .zero
-                for i in 0..<y.count {
-                    A_nu_mu += Complex<Double>.pow(z_mu_z_nu, i)
-                }
-                A[nu, mu] = A_nu_mu
-                A[mu, nu] = A_nu_mu
-            }
-            for i in 0..<y.count {
-                a[mu] += y[i] * Complex<Double>.pow(z[mu], i)
+        var A = Matrix<Complex<Double>>.zeros(rows: y.count, columns: z.count)
+        for j in 0..<y.count {
+            for k in 0..<z.count {
+                A[j, k] = .pow(z[k], j)
             }
         }
-        let G = try! MatrixOperations.solve(A: A, b: a)
+        let (G, _) = try! Optimize.linearLeastSquares(A: A, Vector(y.map {Complex($0)}))
+        //var A = Matrix<Complex<Double>>.zeros(rows: terms, columns: terms)
+        //var a = Vector<Complex<Double>>.zero(terms)
+        //for mu in 0..<terms {
+        //    for nu in mu..<terms {
+        //        let z_mu = z[mu]
+        //        let z_nu = z[nu]
+        //        let z_mu_z_nu = z_mu * z_nu
+        //        var A_nu_mu: Complex<Double> = .zero
+        //        for i in 0..<y.count {
+        //            A_nu_mu += Complex<Double>.pow(z_mu_z_nu, i)
+        //        }
+        //        A[nu, mu] = A_nu_mu
+        //        A[mu, nu] = A_nu_mu
+        //    }
+        //    for i in 0..<y.count {
+        //        a[mu] += y[i] * Complex<Double>.pow(z[mu], i)
+        //    }
+        //}
+        //let G = try! MatrixOperations.solve(A: A, b: a)
         return (G.components, W)
     }
     

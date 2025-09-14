@@ -43,10 +43,10 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
     
     let (G, W) = {
         let T: Double = .zero
-        let tSpace = [Double].linearSpace(0, 10, 500)
+        let tSpace = [Double].linearSpace(0, 10, 501)
         let bcf = tSpace.map { bathCorrelationFunction(A: A, omegaC: omegaC, t: $0, temperature: T) }
-        //let (G, W) = tPFD.fit(x: tSpace, y: bcf, realTerms: 3, imaginaryTerms: 3)
-        let (G, W) = MatrixPencil.fit(y: bcf, dt: tSpace[1] - tSpace[0], terms: 2)
+        //let (G, W) = tPFD.fit(x: tSpace, y: bcf, realTerms: 4, imaginaryTerms: 4)
+        let (G, W) = MatrixPencil.fit(y: bcf, dt: tSpace[1] - tSpace[0], terms: 3)
         if plotBCF {
             let tSpace = [Double].linearSpace(0, 20, 501)
             let bcf = tSpace.map { bathCorrelationFunction(A: A, omegaC: omegaC, t: $0, temperature: T) }
