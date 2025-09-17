@@ -1,5 +1,5 @@
 {
-  "originHash" : "45a4408e3937979e7a38d0569536eeba650f82c070e25a34b88cdcd97e44107c",
+  "originHash" : "cd87117743e2d95de16a91a0cf404c041e12ff92650b3ed33ed4bb23c48b4bc9",
   "pins" : [
     {
       "identity" : "pythonkit",
@@ -25,7 +25,7 @@
       "location" : "https://github.com/MarSe32m/sebbu-science",
       "state" : {
         "branch" : "main",
-        "revision" : "b0914fbedf00fbbc9d48aaef38750dc6f6bc1277"
+        "revision" : "c0383732c2f77c91cfbc60e706b579223da8e149"
       }
     },
     {
