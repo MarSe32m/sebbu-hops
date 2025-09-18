@@ -93,8 +93,8 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
     let nonLinearTrajectories = noises.parallelMap { z in
         hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, stepSize: 0.01)
     }
-    let nonLinerEnd = ContinuousClock().now
-    print("Non-linear time: \(nonLinerEnd - nonLinearStart)")
+    let nonLinearEnd = ContinuousClock().now
+    print("Non-linear time: \(nonLinearEnd - nonLinearStart)")
     
     let linearTSpace = linearTrajectories[0].tSpace
     var linearRho: [Matrix<Complex<Double>>] = []
@@ -122,16 +122,24 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
         }
     }
     
-    plt.figure()
-    plt.plot(x: linearTSpace, y: linearRho.map { $0[0, 0].real }, label: "Lin Re rho00")
-    plt.plot(x: linearTSpace, y: linearRho.map { $0[0, 1].real }, label: "Lin Re rho01")
-    plt.plot(x: linearTSpace, y: linearRho.map { $0[0, 1].imaginary }, label: "Lin Im rho01")
-    plt.plot(x: linearTSpace, y: linearRho.map { $0[1, 1].real }, label: "Lin Re rho11")
+    let linearX = linearRho.map { 2 * $0[0, 1].real }
+    let linearY = linearRho.map { 2 * $0[0, 1].imaginary }
+    let linearZ = linearRho.map { $0[0, 0].real - $0[1, 1].real }
     
-    plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { $0[0, 0].real }, label: "Non-lin Re rho00", linestyle: "--")
-    plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { $0[0, 1].real }, label: "Non-lin Re rho01", linestyle: "--")
-    plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { $0[0, 1].imaginary }, label: "Non-lin Im rho01", linestyle: "--")
-    plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { $0[1, 1].real }, label: "Non-lin Re rho11", linestyle: "--")
+    let nonLinearX = nonLinearRho.map { 2 * $0[0, 1].real }
+    let nonLinearY = nonLinearRho.map { 2 * $0[0, 1].imaginary }
+    let nonLinearZ = nonLinearRho.map { $0[0, 0].real - $0[1, 1].real }
+    
+    
+    plt.figure()
+    plt.plot(x: linearTSpace, y: linearX, label: "Lin <x>")
+    plt.plot(x: linearTSpace, y: linearY, label: "Lin <y>")
+    plt.plot(x: linearTSpace, y: linearZ, label: "Lin <z>")
+    
+    plt.plot(x: nonLinearTSpace, y: nonLinearX, label: "Non-lin <x>", linestyle: "--")
+    plt.plot(x: nonLinearTSpace, y: nonLinearY, label: "Non-lin <y>", linestyle: "--")
+    plt.plot(x: nonLinearTSpace, y: nonLinearZ, label: "Non-lin <z>", linestyle: "--")
+    
     plt.legend()
     plt.xlabel("t")
     plt.ylabel("rho")
