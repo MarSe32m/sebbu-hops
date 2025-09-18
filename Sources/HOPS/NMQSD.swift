@@ -52,11 +52,11 @@ public struct NMQSDCalculation: Sendable {
             var solver = RK45FixedStep(initialState: initialState, t0: start, dt: stepSize) { t, psi in 
                 var result = resultCache.removeFirst()
                 defer { resultCache.append(result) }
-                Heff._copyElements(from: iH)
-                Heff._add(L, multiplied: z(t).conjugate)
-                LDagger._dot(OBar(t, z), into: &_LDaggerOBar)
-                Heff._subtract(_LDaggerOBar)
-                Heff._dot(psi, into: &result)
+                Heff.copyElements(from: iH)
+                Heff.add(L, multiplied: z(t).conjugate)
+                LDagger.dot(OBar(t, z), into: &_LDaggerOBar)
+                Heff.subtract(_LDaggerOBar)
+                Heff.dot(psi, into: &result)
                 return result
             }
             var tSpace: [Double] = []
@@ -99,13 +99,13 @@ public struct NMQSDCalculation: Sendable {
                     result[1][i] = G[i].conjugate * LDaggerExpectation - W[i].conjugate * currentShiftVector[i]
                 }
 
-                Heff._copyElements(from: iH)
-                Heff._add(L, multiplied: z(t).conjugate + noiseShift)
+                Heff.copyElements(from: iH)
+                Heff.add(L, multiplied: z(t).conjugate + noiseShift)
                 let _OBar = OBar(t, z)
-                LDagger._dot(_OBar, into: &_LDaggerOBar)
-                Heff._add(_OBar, multiplied: LDaggerExpectation)
-                Heff._subtract(_LDaggerOBar)
-                Heff._dot(psi[0], into: &result[0])
+                LDagger.dot(_OBar, into: &_LDaggerOBar)
+                Heff.add(_OBar, multiplied: LDaggerExpectation)
+                Heff.subtract(_LDaggerOBar)
+                Heff.dot(psi[0], into: &result[0])
                 return result
             }
             var tSpace: [Double] = []
@@ -128,7 +128,7 @@ public struct NMQSDCalculation: Sendable {
     }
 
     /// Map a linear NMQSD trajectory to density matrix
-    /// - Parameter trajectory: The linear HOPS trajectory to map to density matrix
+    /// - Parameter trajectory: The linear NMQSD trajectory to map to density matrix
     /// - Returns: Array of density matrices
     @inlinable
     @inline(__always)
@@ -142,7 +142,7 @@ public struct NMQSDCalculation: Sendable {
     }
     
     /// Maps a non-linear NMQSD trajectory to density matrix
-    /// - Parameter trajectory: The non-linear HOPS trajectory to map to density matrix
+    /// - Parameter trajectory: The non-linear NMQSD trajectory to map to density matrix
     /// - Returns: Array of density matrices
     @inlinable
     @inline(__always)
