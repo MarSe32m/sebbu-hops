@@ -23,8 +23,8 @@ public extension HOPSHierarchy {
     /// - Returns: A tuple containing the time points and the corresponding system state vectors
     @inlinable
     @inline(__always)
-    func solveLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
-        solveLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, customOperators: customOperators, stepSize: stepSize)
+    func solveLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
+        solveLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy
@@ -38,7 +38,7 @@ public extension HOPSHierarchy {
     ///   - stepSize: Simulation step size. Default value is 0.01
     /// - Returns: A tuple containing the time points and the corresponding system state vectors
     @inlinable
-    func solveLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
+    func solveLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
         precondition(initialState.count == dimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial state")
         var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
         for i in 0..<initialState.count {
@@ -84,16 +84,17 @@ public extension HOPSHierarchy {
                 B.dot(currentState, addingInto: &result)
                 return result
             }
+            let resultDimension = includeHierarchy ? initialStateVector.count : dimension
             var tSpace: [Double] = []
             tSpace.reserveCapacity(Int((end - start) / stepSize) + 2)
-            var trajectory: [Vector<Complex<Double>>] = .init(repeating: .zero(dimension), count: tSpace.capacity)
+            var trajectory: [Vector<Complex<Double>>] = .init(repeating: .zero(resultDimension), count: tSpace.capacity)
             var index = 0
             while solver.t < end {
                 let (t, state) = solver.step()
                 if index >= trajectory.count {
-                    trajectory.append(.zero(dimension))
+                    trajectory.append(.zero(resultDimension))
                 }
-                for i in 0..<dimension {
+                for i in 0..<resultDimension {
                     trajectory[index][i] = state[i]
                 }
                 tSpace.append(t)
@@ -119,8 +120,8 @@ public extension HOPSHierarchy {
     /// - Returns: A tuple containing the time points and the corresponding system state vectors
     @inlinable
     @inline(__always)
-    func solveLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        solveLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, w: w, wOperator: wOperator, customOperators: customOperators, stepSize: stepSize)
+    func solveLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
+        solveLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, w: w, wOperator: wOperator, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy
@@ -136,7 +137,7 @@ public extension HOPSHierarchy {
     ///   - stepSize: Simulation step size. Default value is 0.01
     /// - Returns: A tuple containing the time points and the corresponding system state vectors
     @inlinable
-    func solveLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
+    func solveLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         precondition(initialState.count == dimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial state")
         var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
         for i in 0..<initialState.count {
@@ -202,16 +203,17 @@ public extension HOPSHierarchy {
             } w: { t in
                 w(t)
             }
+            let resultDimension = includeHierarchy ? initialStateVector.count : dimension
             var tSpace: [Double] = []
             tSpace.reserveCapacity(Int((end - start) / stepSize) + 2)
-            var trajectory: [Vector<Complex<Double>>] = .init(repeating: .zero(dimension), count: tSpace.capacity)
+            var trajectory: [Vector<Complex<Double>>] = .init(repeating: .zero(resultDimension), count: tSpace.capacity)
             var index = 0
             while solver.t < end {
                 let (t, state) = solver.step()
                 if index >= trajectory.count {
-                    trajectory.append(.zero(dimension))
+                    trajectory.append(.zero(resultDimension))
                 }
-                for i in 0..<dimension {
+                for i in 0..<resultDimension {
                     trajectory[index][i] = state[i]
                 }
                 tSpace.append(t)
