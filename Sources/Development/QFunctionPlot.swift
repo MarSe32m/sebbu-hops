@@ -22,7 +22,7 @@ private func _bcf(t: Double, spectralDensity: (Double) -> Double) -> Complex<Dou
 }
 
 public func QFunctionPlot(endTime: Double) {
-    let A = 0.5 * 2
+    let A = 0.5 * 2.5
     let omegaC = 1.0
     let gamma = 0.01
     
@@ -45,7 +45,8 @@ public func QFunctionPlot(endTime: Double) {
     }()
     
     let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
-    let hierarchy = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 30)
+    let hierarchy1 = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 15)
+    let hierarchy2 = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 30)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
     let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime, dtMax: 0.001) { omega in
@@ -55,26 +56,27 @@ public func QFunctionPlot(endTime: Double) {
     let noise = zGenerator.generate()
     let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
     
-    let (linearTSpace, linearTrajectory) = hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, z: noise, stepSize: 0.01, includeHierarchy: true)
-    let (nonLinearTSpace, nonLinearTrajectory, shift) = hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: noise, stepSize: 0.01, includeHierarchy: true)
-    let (nonLinearShiftedTSpace, nonLinearShiftedTrajectory, exactShift) = hierarchy.solveNonLinearShifted(end: endTime, initialState: initialState, H: H, z: noise, stepSize: 0.01, includeHierarchy: true)
+    let (linearTSpace, linearTrajectory) = hierarchy1.solveLinear(end: endTime, initialState: initialState, H: H, z: noise, stepSize: 0.01, includeHierarchy: true)
+    let (nonLinearTSpace, nonLinearTrajectory, _) = hierarchy1.solveNonLinear(end: endTime, initialState: initialState, H: H, z: noise, shiftType: .none, stepSize: 0.01, includeHierarchy: true)
+    let (nonLinearMeanShiftedTSpace, nonLinearMeanShiftedTrajectory, shift) = hierarchy2.solveNonLinear(end: endTime, initialState: initialState, H: H, z: noise, shiftType: .meanField, stepSize: 0.01, includeHierarchy: true)
+    let (nonLinearExactShiftedTSpace, nonLinearExactShiftedTrajectory, exactShift) = hierarchy2.solveNonLinearShifted(end: endTime, initialState: initialState, H: H, z: noise, stepSize: 0.01, includeHierarchy: true)
     
-    let LDaggerExp = nonLinearTrajectory.map { vec in
-        let systemState = Vector(Array(vec.components[0..<2]))
-        return systemState.dot(systemState, metric: L.conjugateTranspose) / systemState.normSquared
-    }
-    
-    let nonLinearRho = hierarchy.mapNonLinearToDensityMatrix( nonLinearTrajectory.map {Vector(Array($0.components[0..<2]))})
-    let nonLinearShiftedRho = hierarchy.mapNonLinearToDensityMatrix(nonLinearShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})
-    
+    let nonLinearMeanShifted = hierarchy1.mapNonLinearToDensityMatrix( nonLinearMeanShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})
+    let nonLinearExactShiftedRho = hierarchy1.mapNonLinearToDensityMatrix(nonLinearExactShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})
+    let nonLinearRho = hierarchy1.mapNonLinearToDensityMatrix(nonLinearTrajectory.map {Vector(Array($0.components[0..<2]))})
+
     plt.figure()
-    plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { $0[0, 0] - $0[1, 1] }.real, label: "NL: <z>")
-    plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { 2 * $0[0, 1].real }, label: "NL: <x>")
-    plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { 2 * $0[0, 1].imaginary } , label: "NL: <y>")
+    plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { $0[0, 0] - $0[1, 1] }.real, label: "NLS: <z>")
+    plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { 2 * $0[0, 1].real }, label: "NLS: <x>")
+    plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { 2 * $0[0, 1].imaginary } , label: "NLS: <y>")
     
-    plt.plot(x: nonLinearShiftedTSpace, y: nonLinearShiftedRho.map { $0[0, 0] - $0[1, 1] }.real, label: "NLS: <z>", linestyle: "--")
-    plt.plot(x: nonLinearShiftedTSpace, y: nonLinearShiftedRho.map { 2 * $0[0, 1].real }, label: "NLS: <x>", linestyle: "--")
-    plt.plot(x: nonLinearShiftedTSpace, y: nonLinearShiftedRho.map { 2 * $0[0, 1].imaginary } , label: "NLS: <y>", linestyle: "--")
+    plt.plot(x: nonLinearMeanShiftedTSpace, y: nonLinearMeanShifted.map { $0[0, 0] - $0[1, 1] }.real, label: "NLM: <z>", linestyle: "-.")
+    plt.plot(x: nonLinearMeanShiftedTSpace, y: nonLinearMeanShifted.map { 2 * $0[0, 1].real }, label: "NLM: <x>", linestyle: "-.")
+    plt.plot(x: nonLinearMeanShiftedTSpace, y: nonLinearMeanShifted.map { 2 * $0[0, 1].imaginary } , label: "NLM: <y>", linestyle: "-.")
+    
+    plt.plot(x: nonLinearExactShiftedTSpace, y: nonLinearExactShiftedRho.map { $0[0, 0] - $0[1, 1] }.real, label: "NLE: <z>", linestyle: "--")
+    plt.plot(x: nonLinearExactShiftedTSpace, y: nonLinearExactShiftedRho.map { 2 * $0[0, 1].real }, label: "NLE: <x>", linestyle: "--")
+    plt.plot(x: nonLinearExactShiftedTSpace, y: nonLinearExactShiftedRho.map { 2 * $0[0, 1].imaginary } , label: "NLE: <y>", linestyle: "--")
     
     plt.legend()
     plt.xlabel("t")
@@ -83,33 +85,34 @@ public func QFunctionPlot(endTime: Double) {
     plt.close()
     
     
-    plt.figure()
-    plt.plot(x: nonLinearTSpace, y: shift.real, label: "Re u(t)")
-    plt.plot(x: nonLinearTSpace, y: shift.imaginary, label: "Im u(t)")
+    //plt.figure()
+    //plt.plot(x: nonLinearMeanShiftedTSpace, y: shift.real, label: "Re u(t)")
+    //plt.plot(x: nonLinearMeanShiftedTSpace, y: shift.imaginary, label: "Im u(t)")
     
-    plt.plot(x: nonLinearShiftedTSpace, y: exactShift.real, label: "Re exact u(t)")
-    plt.plot(x: nonLinearShiftedTSpace, y: exactShift.imaginary, label: "Im exact u(t)")
+    //plt.plot(x: nonLinearExactShiftedTSpace, y: exactShift.real, label: "Re exact u(t)")
+    //plt.plot(x: nonLinearExactShiftedTSpace, y: exactShift.imaginary, label: "Im exact u(t)")
     
     //plt.plot(x: nonLinearTSpace, y: LDaggerExp.real, label: "Re <Ld>", linestyle: "--")
     //plt.plot(x: nonLinearTSpace, y: LDaggerExp.imaginary, label: "Im <Ld>", linestyle: "--")
-    plt.legend()
-    plt.xlabel("t")
-    plt.ylabel("u(t)")
-    plt.show()
-    plt.close()
+    //plt.legend()
+    //plt.xlabel("t")
+    //plt.ylabel("u(t)")
+    //plt.show()
+    //plt.close()
     
-    plt.figure()
-    plt.plot(x: nonLinearTSpace, y: nonLinearTSpace.enumerated().map { i, t in noise(t).conjugate + shift[i] }.real, label: "Re shifted z(t)^*" )
-    plt.plot(x: nonLinearTSpace, y: nonLinearTSpace.enumerated().map { i, t in noise(t).conjugate + shift[i] }.imaginary, label: "Im shifted z(t)^*" )
-    plt.legend()
-    plt.xlabel("t")
-    plt.ylabel("z^*(t)")
-    plt.show()
-    plt.close()
+    //plt.figure()
+    //plt.plot(x: nonLinearMeanShiftedTSpace, y: nonLinearMeanShiftedTSpace.enumerated().map { i, t in noise(t).conjugate + shift[i] }.real, label: "Re shifted z(t)^*" )
+    //plt.plot(x: nonLinearMeanShiftedTSpace, y: nonLinearMeanShiftedTSpace.enumerated().map { i, t in noise(t).conjugate + shift[i] }.imaginary, label: "Im shifted z(t)^*" )
+    //plt.legend()
+    //plt.xlabel("t")
+    //plt.ylabel("z^*(t)")
+    //plt.show()
+    //plt.close()
     
     let linearQFunction = QFunction(tSpace: linearTSpace, totalStates: linearTrajectory, dimension: 2)
     let nonLinearQFunction = QFunction(tSpace: nonLinearTSpace, totalStates: nonLinearTrajectory, dimension: 2)
-    let nonLinearExactShiftQFunction = QFunction(tSpace: nonLinearShiftedTSpace, totalStates: nonLinearShiftedTrajectory, dimension: 2)
+    let nonLinearMeanShiftQFunction = QFunction(tSpace: nonLinearMeanShiftedTSpace, totalStates: nonLinearMeanShiftedTrajectory, dimension: 2)
+    let nonLinearExactShiftQFunction = QFunction(tSpace: nonLinearExactShiftedTSpace, totalStates: nonLinearExactShiftedTrajectory, dimension: 2)
     
     let xAxis = [Double].linearSpace(-10, 10.5, 200)
     let yAxis = [Double].linearSpace(-10, 10.5, 200)
@@ -117,7 +120,8 @@ public func QFunctionPlot(endTime: Double) {
     
     plt.figure()
     plt.plot(x: tSpace, y: tSpace.map { linearQFunction.numberOperatorExpectationValue(t: $0) }, label: "Linear")
-    plt.plot(x: tSpace, y: tSpace.map { nonLinearQFunction.numberOperatorExpectationValue(t: $0) }, label: "Non-linear", linestyle: "--")
+    plt.plot(x: tSpace, y: tSpace.map { nonLinearQFunction.numberOperatorExpectationValue(t: $0) }, label: "Non-linear")
+    plt.plot(x: tSpace, y: tSpace.map { nonLinearMeanShiftQFunction.numberOperatorExpectationValue(t: $0) }, label: "Non-linear mean", linestyle: "--")
     plt.plot(x: tSpace, y: tSpace.map { nonLinearExactShiftQFunction.numberOperatorExpectationValue(t: $0) }, label: "Non-linear exact", linestyle: "-.")
     plt.legend()
     plt.xlabel("t")
@@ -127,10 +131,11 @@ public func QFunctionPlot(endTime: Double) {
 
     _plotQFunction(linearQFunction, xAxis: xAxis, yAxis: yAxis, tSpace: tSpace, title: "Linear")
     _plotQFunction(nonLinearQFunction, xAxis: xAxis, yAxis: yAxis, tSpace: tSpace, title: "Non-linear")
+    _plotQFunction(nonLinearMeanShiftQFunction, xAxis: xAxis, yAxis: yAxis, tSpace: tSpace, title: "Non-linear mean")
     _plotQFunction(nonLinearExactShiftQFunction, xAxis: xAxis, yAxis: yAxis, tSpace: tSpace, title: "Non-linear exact", show: true)
-    _plotAuxiliaryStateTarjectories(dimension: 2, tSpace: nonLinearShiftedTSpace, trajectory: nonLinearShiftedTrajectory, title: "Non-linear exact shift", hierarchy: hierarchy)
-    _plotAuxiliaryStateTarjectories(dimension: 2, tSpace: nonLinearTSpace, trajectory: nonLinearTrajectory, title: "Non-linear", hierarchy: hierarchy)
-    _plotAuxiliaryStateTarjectories(dimension: 2, tSpace: linearTSpace, trajectory: linearTrajectory, title: "Linear", hierarchy: hierarchy)
+    //_plotAuxiliaryStateTarjectories(dimension: 2, tSpace: nonLinearExactShiftedTSpace, trajectory: nonLinearExactShiftedTrajectory, title: "Non-linear exact shift", hierarchy: hierarchy)
+    //_plotAuxiliaryStateTarjectories(dimension: 2, tSpace: nonLinearMeanShiftedTSpace, trajectory: nonLinearMeanShiftedTrajectory, title: "Non-linear mean shift", hierarchy: hierarchy)
+    //_plotAuxiliaryStateTarjectories(dimension: 2, tSpace: linearTSpace, trajectory: linearTrajectory, title: "Linear", hierarchy: hierarchy)
 }
 
 private func _factorial(_ n: Int) -> Double {
