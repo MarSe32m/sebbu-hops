@@ -23,7 +23,7 @@ public extension HOPSHierarchy {
     /// - Returns: A tuple containing the time points and the corresponding **unnormalized** system state vectors
     @inlinable
     @inline(__always)
-    func solveNonLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
+    func solveNonLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>], shift: [Complex<Double>]) where Noise: ComplexNoiseProcess {
         solveNonLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
@@ -38,7 +38,7 @@ public extension HOPSHierarchy {
     ///   - stepSize: Simulation step size. Default value is 0.01
     /// - Returns: A tuple containing the time points and the corresponding **unnormalized** system state vectors
     @inlinable
-    func solveNonLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
+    func solveNonLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>], shift: [Complex<Double>]) where Noise: ComplexNoiseProcess {
         let dimension = initialState.count
         var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
         for i in 0..<dimension {
@@ -50,6 +50,7 @@ public extension HOPSHierarchy {
         let WConjugateVector: Vector<Complex<Double>> = .init(W.map { -$0.conjugate })
         let LDagger = L.conjugateTranspose
         var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialStateVector.count), .zero(G.count)], count: 4)
+        var _shift: [Complex<Double>] = []
         return withoutActuallyEscaping(H) { H in
             var Heff = H(start)
             var solver = RK45FixedStep<[Vector<Complex<Double>>]>(initialState: [initialStateVector, initialStateVectorForShift], t0: start, dt: stepSize) { t, currentStates in
@@ -57,7 +58,9 @@ public extension HOPSHierarchy {
                 for i in 0..<dimension {
                     systemState[i] = currentState[i]
                 }
-                let LDaggerExpectation = systemState.inner(systemState, metric: LDagger) / systemState.normSquared
+                let LExpectation = systemState.inner(systemState, metric: L) / systemState.normSquared
+                let LDaggerExpectation = LExpectation.conjugate
+                
                 var result = resultCache.removeFirst()
                 defer { resultCache.append(result) }
                 
@@ -76,6 +79,7 @@ public extension HOPSHierarchy {
                 Heff.zeroElements()
                 Heff.add(H(t), multiplied: -.i)
                 Heff.add(L, multiplied: zTilde)
+                Heff.add(LDagger, multiplied: -shift.conjugate)
                 for customOperator in customOperators {
                     Heff.add(customOperator(t, systemState))
                 }
@@ -87,7 +91,7 @@ public extension HOPSHierarchy {
                         var index = 0
                         var kWIndex = 0
                         while index < resultBuffer.count {
-                            Heff.dot(currentStatePointer, into: resultPointer)
+                            Heff._dot(currentStatePointer, into: resultPointer)
                             let kW = kWSpan[unchecked: kWIndex]
                             for i in 0..<dimension {
                                 resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
@@ -97,17 +101,20 @@ public extension HOPSHierarchy {
                             index &+= dimension
                             kWIndex &+= 1
                         }
-                        
                     }
                 }
                 B.dot(currentState, addingInto: &result[0])
                 P.dot(currentState, multiplied: LDaggerExpectation, addingInto: &result[0])
+                N.dot(currentState, multiplied: -LExpectation, addingInto: &result[0])
                 return result
             }
             let resultDimension = includeHierarchy ? initialStateVector.count : dimension
             var tSpace: [Double] = []
             tSpace.reserveCapacity(Int((end - start) / stepSize) + 2)
-            var trajectory: [Vector<Complex<Double>>] = .init(repeating: .zero(resultDimension), count: tSpace.capacity)
+            //var trajectory: [Vector<Complex<Double>>] = .init(repeating: .zero(resultDimension), count: tSpace.capacity)
+            var trajectory: [Vector<Complex<Double>>] = []
+            trajectory.reserveCapacity(tSpace.capacity)
+            for _ in 0..<trajectory.capacity { trajectory.append(.zero(resultDimension)) }
             var index = 0
             while solver.t < end {
                 let (t, state) = solver.step()
@@ -117,11 +124,13 @@ public extension HOPSHierarchy {
                 for i in 0..<resultDimension {
                     trajectory[index][i] = state[0][i]
                 }
+                let shift = state[1].components.reduce(.zero, +)
+                _shift.append(shift.conjugate)
                 tSpace.append(t)
                 index += 1
             }
             trajectory.removeLast(trajectory.count - tSpace.count)
-            return (tSpace, trajectory)
+            return (tSpace, trajectory, _shift)
         }
     }
     

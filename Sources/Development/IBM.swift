@@ -70,7 +70,7 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
     }()
     
     let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
-    let hierarchy = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 4)
+    let hierarchy = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 3)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, Complex(renormalizationEnergy)], rows: 2, columns: 2)
     let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
@@ -111,7 +111,7 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
     
     let nonLinearTSpace = nonLinearTrajectories[0].tSpace
     var nonLinearRho: [Matrix<Complex<Double>>] = []
-    for (_, trajectory) in nonLinearTrajectories {
+    for (_, trajectory, _) in nonLinearTrajectories {
         let _rho = hierarchy.mapNonLinearToDensityMatrix(trajectory)
         if nonLinearRho.isEmpty {
             nonLinearRho = _rho.map { $0 / Double(realizations) }

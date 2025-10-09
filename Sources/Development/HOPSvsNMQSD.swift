@@ -24,6 +24,7 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
         let (G, W) = MatrixPencil.fit(y: bcf, dt: tSpace[1] - tSpace[0], terms: 3)
         return (G, W)
     }()
+    print(G)
     
     let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
     let hierarchy = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 3)
@@ -114,7 +115,7 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
     
     let nonLinearTSpace = nonLinearTrajectories[0].tSpace
     var nonLinearRho: [Matrix<Complex<Double>>] = []
-    for (_, trajectory) in nonLinearTrajectories {
+    for (_, trajectory, _) in nonLinearTrajectories {
         let _rho = hierarchy.mapNonLinearToDensityMatrix(trajectory)
         if nonLinearRho.isEmpty {
             nonLinearRho = _rho.map { $0 / Double(realizations) }
