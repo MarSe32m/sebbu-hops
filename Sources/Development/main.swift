@@ -17,8 +17,8 @@ PythonLibrary.useLibrary(at: "/usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0")
 //TODO: Set the library path on Windows machine
 #endif
 
-//testHOPSDecomposedPropagation(endTime: 120.0, at: 3.5)
-QFunctionPlot(endTime: 50.0)
+testHOPSDecomposedPropagation(endTime: 120.0, at: 3.5)
+QFunctionPlot(endTime: 10.0)
 HOPSvsNMQSD(realizations: 1, endTime: 1750.0)
 IBMExample(realizations: 256, endTime: 1750.0, plotBCF: true)
 noiseGenerationExample()

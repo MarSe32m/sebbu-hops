@@ -128,8 +128,6 @@ public extension HOPSHierarchy {
                     creationOperators[i].dot(currentState, into: &creationOperatorPsiCache[i])
                     annihilationOperators[i].dot(currentState, into: &annihilationOperatorPsiCache[i])
                     annihilationOperators[i].dot(result[0], into: &annihilationOperatorPsi0Cache[i])
-                    
-                    //result[0].add(creationOperatorPsiCache[i], multiplied: -W[i] / .sqrt(G[i]) * currentShiftVector[i])
                 }
                 
                 let totalStateNormSquared = currentState.normSquared

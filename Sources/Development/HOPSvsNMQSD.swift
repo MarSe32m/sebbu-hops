@@ -71,6 +71,10 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
     var nonLinearEnd = ContinuousClock().now
     print("Non-linear HOPS time:  \(nonLinearEnd - nonLinearStart)")
     
+    let nonLinearShiftedTrajectories = noises.parallelMap { z in
+        hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, shiftType: .meanField, stepSize: 0.01)
+    }
+    
     nonLinearStart = .now
     let nonLinearNMQSDTrajectories = noises.parallelMap { z in 
         var _L: Matrix<Complex<Double>> = .zeros(rows: L.rows, columns: L.columns)
@@ -126,6 +130,19 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
         }
     }
     
+    let nonLinearShiftedTSpace = nonLinearShiftedTrajectories[0].tSpace
+    var nonLinearShiftedRho: [Matrix<Complex<Double>>] = []
+    for (_, trajectory, _) in nonLinearShiftedTrajectories {
+        let _rho = hierarchy.mapNonLinearToDensityMatrix(trajectory)
+        if nonLinearShiftedRho.isEmpty {
+            nonLinearShiftedRho = _rho.map { $0 / Double(realizations) }
+        } else {
+            for i in 0..<_rho.count {
+                nonLinearShiftedRho[i].add(_rho[i], multiplied: 1 / Double(realizations))
+            }
+        }
+    }
+    
     let nonLinearNMQSDTSpace = nonLinearNMQSDTrajectories[0].tSpace
     var nonLinearNMQSDRho: [Matrix<Complex<Double>>] = []
     for (_, trajectory) in nonLinearNMQSDTrajectories {
@@ -147,6 +164,10 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
     let nonLinearHOPSX = nonLinearRho.map { 2 * $0[0, 1].real }
     let nonLinearHOPSY = nonLinearRho.map { 2 * $0[0, 1].imaginary }
 
+    let nonLinearShiftedHOPSZ = nonLinearShiftedRho.map { $0[0, 0].real - $0[1, 1].real }
+    let nonLinearShiftedHOPSX = nonLinearShiftedRho.map { 2 * $0[0, 1].real }
+    let nonLinearShiftedHOPSY = nonLinearShiftedRho.map { 2 * $0[0, 1].imaginary }
+    
     let linearNMQSDZ = linearNMQSDRho.map { $0[0, 0].real - $0[1, 1].real }
     let linearNMQSDX = linearNMQSDRho.map { 2 * $0[0, 1].real }
     let linearNMQSDY = linearNMQSDRho.map { 2 * $0[0, 1].imaginary }
@@ -180,6 +201,19 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
     plt.plot(x: nonLinearTSpace, y: nonLinearHOPSY, label: "HOPS Y", linestyle: "--")
     plt.plot(x: nonLinearTSpace, y: nonLinearHOPSZ, label: "HOPS Z", linestyle: "--")
     plt.title("Non-linear HOPS vs NMQSD")
+    plt.legend()
+    plt.xlabel("t")
+    plt.show()
+    plt.close()
+    
+    plt.figure()
+    plt.plot(x: nonLinearNMQSDTSpace, y: nonLinearNMQSDX, label: "NMQSD X")
+    plt.plot(x: nonLinearNMQSDTSpace, y: nonLinearNMQSDY, label: "NMQSD Y")
+    plt.plot(x: nonLinearNMQSDTSpace, y: nonLinearNMQSDZ, label: "NMQSD Z")
+    plt.plot(x: nonLinearShiftedTSpace, y: nonLinearShiftedHOPSX, label: "HOPS X", linestyle: "--")
+    plt.plot(x: nonLinearShiftedTSpace, y: nonLinearShiftedHOPSY, label: "HOPS Y", linestyle: "--")
+    plt.plot(x: nonLinearShiftedTSpace, y: nonLinearShiftedHOPSZ, label: "HOPS Z", linestyle: "--")
+    plt.title("Non-linear shifted HOPS vs NMQSD")
     plt.legend()
     plt.xlabel("t")
     plt.show()

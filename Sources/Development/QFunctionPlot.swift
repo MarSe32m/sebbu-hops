@@ -22,7 +22,7 @@ private func _bcf(t: Double, spectralDensity: (Double) -> Double) -> Complex<Dou
 }
 
 public func QFunctionPlot(endTime: Double) {
-    let A = 0.5 * 2.5
+    let A = 0.1
     let omegaC = 1.0
     let gamma = 0.01
     
@@ -45,8 +45,8 @@ public func QFunctionPlot(endTime: Double) {
     }()
     
     let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
-    let hierarchy1 = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 15)
-    let hierarchy2 = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 30)
+    let hierarchy1 = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 4)
+    let hierarchy2 = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 3)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
     let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime, dtMax: 0.001) { omega in
@@ -61,9 +61,9 @@ public func QFunctionPlot(endTime: Double) {
     let (nonLinearMeanShiftedTSpace, nonLinearMeanShiftedTrajectory, shift) = hierarchy2.solveNonLinear(end: endTime, initialState: initialState, H: H, z: noise, shiftType: .meanField, stepSize: 0.01, includeHierarchy: true)
     let (nonLinearExactShiftedTSpace, nonLinearExactShiftedTrajectory, exactShift) = hierarchy2.solveNonLinearShifted(end: endTime, initialState: initialState, H: H, z: noise, stepSize: 0.01, includeHierarchy: true)
     
-    let nonLinearMeanShifted = hierarchy1.mapNonLinearToDensityMatrix( nonLinearMeanShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})
-    let nonLinearExactShiftedRho = hierarchy1.mapNonLinearToDensityMatrix(nonLinearExactShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})
-    let nonLinearRho = hierarchy1.mapNonLinearToDensityMatrix(nonLinearTrajectory.map {Vector(Array($0.components[0..<2]))})
+    let nonLinearMeanShifted = hierarchy1.mapLinearToDensityMatrix( nonLinearMeanShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})
+    let nonLinearExactShiftedRho = hierarchy1.mapLinearToDensityMatrix(nonLinearExactShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})
+    let nonLinearRho = hierarchy1.mapLinearToDensityMatrix(nonLinearTrajectory.map {Vector(Array($0.components[0..<2]))})
 
     plt.figure()
     plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { $0[0, 0] - $0[1, 1] }.real, label: "NLS: <z>")
