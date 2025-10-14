@@ -153,8 +153,8 @@ public extension HOPSHierarchy {
     /// - Returns: A tuple containing the time points and the corresponding **unnormalized** system state vectors
     @inlinable
     @inline(__always)
-    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        solveNonLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, w: w, wOperator: wOperator, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, shiftType: ShiftType = .none, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
+        solveNonLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, w: w, wOperator: wOperator, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear HOPS equation for this hierarchy
@@ -170,7 +170,7 @@ public extension HOPSHierarchy {
     ///   - stepSize: Simulation step size. Default value is 0.01
     /// - Returns: A tuple containing the time points and the corresponding **unnormalized** system state vectors
     @inlinable
-    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
+    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, w: WhiteNoise, wOperator: Matrix<Complex<Double>>, shiftType: ShiftType = .none, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         let dimension = initialState.count
         var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
         for i in 0..<dimension {
@@ -189,7 +189,8 @@ public extension HOPSHierarchy {
                 for i in 0..<dimension {
                     systemState[i] = currentState[i]
                 }
-                let LDaggerExpectation = systemState.inner(systemState, metric: LDagger) / systemState.normSquared
+                let LExpectation = systemState.inner(systemState, metric: L) / systemState.normSquared
+                let LDaggerExpectation = LExpectation.conjugate
                 var result = resultCache.removeFirst()
                 defer { resultCache.append(result) }
                 
@@ -208,6 +209,9 @@ public extension HOPSHierarchy {
                 Heff.zeroElements()
                 Heff.add(H(t), multiplied: -.i)
                 Heff.add(L, multiplied: zTilde)
+                if shiftType == .meanField {
+                    Heff.add(LDagger, multiplied: -shift.conjugate)
+                }
                 for customOperator in customOperators {
                     Heff.add(customOperator(t, systemState))
                 }
@@ -234,6 +238,9 @@ public extension HOPSHierarchy {
                 }
                 B.dot(currentState, addingInto: &result[0])
                 P.dot(currentState, multiplied: LDaggerExpectation, addingInto: &result[0])
+                if shiftType == .meanField {
+                    N.dot(currentState, multiplied: -LExpectation, addingInto: &result[0])
+                }
                 return result
             } g: { t, currentStates in
                 var result = resultCache.removeFirst()
@@ -253,6 +260,7 @@ public extension HOPSHierarchy {
                         
                     }
                 }
+                result[1].zeroComponents()
                 return result
             } w: { t in
                 w(t)

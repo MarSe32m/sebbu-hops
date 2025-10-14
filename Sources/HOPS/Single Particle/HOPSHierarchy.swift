@@ -70,10 +70,13 @@ public struct HOPSHierarchy: Sendable {
     ///   - W: The W exponents of the bath correlation function exponential series
     ///   - depth: The depth of the hierarchy
     @inlinable
-    public init(dimension: Int, L: Matrix<Complex<Double>>, G: [Complex<Double>], W: [Complex<Double>], depth: Int) {
+    public init(dimension: Int, L: Matrix<Complex<Double>>, G: [Complex<Double>], W: [Complex<Double>], depth: Int, truncationCondition: (([Int]) -> Bool)? = nil) {
         precondition(G.count == W.count, "The G and W arrays must be of same size.")
         precondition(dimension == L.columns)
-        let kTuples = HOPSHierarchy._generateKTuples(components: G.count, kMax: depth)
+        //let kTuples = HOPSHierarchy._generateKTuples(components: G.count, kMax: depth)
+        let kTuples = HOPSHierarchy._generateKTuples(components: G.count) { kTuple in
+            truncationCondition?(kTuple) ?? (kTuple.reduce(0, +) <= depth)
+        }
         self.kWArray = HOPSHierarchy._generatekWArray(kTuples: kTuples, W: W)
         let positiveNeighbourIndices = HOPSHierarchy._generatePositiveNeighbourIndices(kTuples: kTuples)
         let negativeNeighbourIndices = HOPSHierarchy._generateNegativeNeighbourIndices(kTuples: kTuples)
@@ -108,6 +111,27 @@ public struct HOPSHierarchy: Sendable {
                     kVectors.append(permutation)
                 }
             }
+        }
+        return kVectors
+    }
+    
+    @inlinable
+    internal static func _generateKTuples(components: Int, truncationCondition: ([Int]) -> Bool) -> [[Int]] {
+        var kVectors: [[Int]] = []
+        for sum in 0... {
+            let partitions = sum.partitions(maxTerms: components).map { partition in
+                if partition.count == components { return partition }
+                precondition(partition.count < components)
+                return partition + [Int](repeating: 0, count: components - partition.count)
+            }
+            var validKTuplesFound = false
+            for partition in partitions {
+                for permutation in partition.uniquePermutations().filter(truncationCondition) {
+                    kVectors.append(permutation)
+                    validKTuplesFound = true
+                }
+            }
+            if !validKTuplesFound { break }
         }
         return kVectors
     }
@@ -317,30 +341,19 @@ public struct HOPSHierarchy: Sendable {
         return lilMatrices.map { CSRMatrix(from: $0) }
     }
     
-    /// Map a linear HOPS trajectory to density matrix
-    /// - Parameter trajectory: The linear HOPS trajectory to map to density matrix
+    
+    /// Maps a HOPS trajectory to the corresponding density matrix
+    /// - Parameters:
+    ///   - trajectory: The HOPS trajectory to map to density matrix
+    ///   - normalized: Whether the trajectory should be normalized. Default value is false.
     /// - Returns: Array of density matrices
     @inlinable
-    @inline(__always)
-    public func mapLinearToDensityMatrix(_ trajectory: [Vector<Complex<Double>>]) -> [Matrix<Complex<Double>>] {
+    public func mapTrajectoryToDensityMatrix(_ trajectory: [Vector<Complex<Double>>], normalized: Bool = false) -> [Matrix<Complex<Double>>] {
         var rho: [Matrix<Complex<Double>>] = []
         rho.reserveCapacity(trajectory.count)
         for state in trajectory {
             rho.append(state.outer(state.conjugate))
-        }
-        return rho
-    }
-    
-    /// Maps a non-linear HOPS trajectory to density matrix
-    /// - Parameter trajectory: The non-linear HOPS trajectory to map to density matrix
-    /// - Returns: Array of density matrices
-    @inlinable
-    @inline(__always)
-    public func mapNonLinearToDensityMatrix(_ trajectory: [Vector<Complex<Double>>]) -> [Matrix<Complex<Double>>] {
-        var rho: [Matrix<Complex<Double>>] = []
-        rho.reserveCapacity(trajectory.count)
-        for state in trajectory {
-            rho.append(state.outer(state.conjugate) / state.normSquared)
+            if normalized { rho[rho.count - 1] /= state.normSquared }
         }
         return rho
     }

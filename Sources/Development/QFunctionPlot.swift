@@ -61,9 +61,9 @@ public func QFunctionPlot(endTime: Double) {
     let (nonLinearMeanShiftedTSpace, nonLinearMeanShiftedTrajectory, shift) = hierarchy2.solveNonLinear(end: endTime, initialState: initialState, H: H, z: noise, shiftType: .meanField, stepSize: 0.01, includeHierarchy: true)
     let (nonLinearExactShiftedTSpace, nonLinearExactShiftedTrajectory, exactShift) = hierarchy2.solveNonLinearShifted(end: endTime, initialState: initialState, H: H, z: noise, stepSize: 0.01, includeHierarchy: true)
     
-    let nonLinearMeanShifted = hierarchy1.mapLinearToDensityMatrix( nonLinearMeanShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})
-    let nonLinearExactShiftedRho = hierarchy1.mapLinearToDensityMatrix(nonLinearExactShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})
-    let nonLinearRho = hierarchy1.mapLinearToDensityMatrix(nonLinearTrajectory.map {Vector(Array($0.components[0..<2]))})
+    let nonLinearMeanShifted = hierarchy1.mapTrajectoryToDensityMatrix( nonLinearMeanShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})
+    let nonLinearExactShiftedRho = hierarchy1.mapTrajectoryToDensityMatrix(nonLinearExactShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})
+    let nonLinearRho = hierarchy1.mapTrajectoryToDensityMatrix(nonLinearTrajectory.map {Vector(Array($0.components[0..<2]))})
 
     plt.figure()
     plt.plot(x: nonLinearTSpace, y: nonLinearRho.map { $0[0, 0] - $0[1, 1] }.real, label: "NLS: <z>")
@@ -224,7 +224,7 @@ private func _plotAuxiliaryStateTarjectories(dimension: Int, tSpace: [Double], t
     print("\(title) hierarchy size: \(trajectory[0].count / 2)")
     for i in stride(from: 0, to: trajectory[0].count, by: 2) {
         let states = trajectory.map { Vector(Array($0.components[i..<i+2])) }
-        let rho = hierarchy.mapLinearToDensityMatrix(states)
+        let rho = hierarchy.mapTrajectoryToDensityMatrix(states)
         let Z = rho.map { $0[0, 0].real - $0[1, 1].real }
         let X = rho.map { 2 * $0[0, 1].real }
         let Y = rho.map { 2 * $0[0, 1].imaginary }

@@ -102,25 +102,24 @@ public extension HOPSHierarchy {
                 tSpace.append(t)
                 index += 1
             }
-            
-            let (s, lastState) = solver.step()
-            var nextInitialState: Vector<Complex<Double>> = .zero(lastState.count)
-            nextInitialState.copyComponents(from: lastState)
-            lastState.components.withUnsafeBufferPointer { lastStateComponents in
+            var nextInitialState: Vector<Complex<Double>> = .zero(solver.currentState.count)
+            nextInitialState.copyComponents(from: solver.currentState)
+            solver.currentState.components.withUnsafeBufferPointer { lastStateComponents in
                 nextInitialState.components.withUnsafeMutableBufferPointer { nextInitialStateComponents in
-                    var index = 0
+                    var idx = 0
                     var lastStateComponentPointer = lastStateComponents.baseAddress!
                     var nextInitialStateComponentPointer = nextInitialStateComponents.baseAddress!
-                    while index < lastStateComponents.count {
+                    while idx < lastStateComponents.count {
                         O.dot(lastStateComponentPointer, into: nextInitialStateComponentPointer)
                         lastStateComponentPointer += dimension
                         nextInitialStateComponentPointer += dimension
-                        index += dimension
+                        idx += dimension
                     }
                 }
             }
-            solver.reset(initialState: nextInitialState, t0: s)
-            
+            index -= 1
+            tSpace.removeLast()
+            solver.reset(initialState: nextInitialState, t0: solver.t)
             while solver.t < end {
                 let (t, state) = solver.step()
                 if index >= trajectory.count {
