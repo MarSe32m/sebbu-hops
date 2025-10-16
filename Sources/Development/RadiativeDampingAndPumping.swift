@@ -45,7 +45,7 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
     }()
     
     let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
-    let hierarchy = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 3)
+    let hierarchy = HOPSMultiParticleHierarchy(dimension: 2, L: [L], G: [[G]], W: [[W]], depth: 3)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, Complex(0.1)], rows: 2, columns: 2)
     let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
@@ -67,7 +67,7 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
     
     let _operatorSum = gammaRSigmaPlusSigmaMinus + gammaPSigmaMinusSigmaPlus
     
-    let batchSize = 100
+    let batchSize = 256
     
     let linearStart = ContinuousClock().now
     var trajectoriesComputed = 0
@@ -87,7 +87,7 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
                     _operatorSum
                 }
                 
-                return hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, z: z,
+                return hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, z: [z],
                                              whiteNoises: [wR, wP],
                                              diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.1)
             }
@@ -100,7 +100,7 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
                     _operatorSum
                 }
                 
-                return hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, z: z,
+                return hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, z: [z],
                                              whiteNoises: [wR, wP],
                                              diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.1)
             }
@@ -155,7 +155,7 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
                     _O.add(sigmaPlus, multiplied: factor)
                     return _O
                 }
-                return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z,
+                return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: [z],
                                                 whiteNoises: [wR, wP],
                                                 diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.1)
             }
@@ -173,12 +173,12 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
                     _O.add(sigmaPlus, multiplied: factor)
                     return _O
                 }
-                return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z,
+                return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: [z],
                                                 whiteNoises: [wR, wP],
                                                 diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.1)
             }
             for (tSpace, trajectory) in nonLinearTrajectories {
-                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalized: true)
+                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalize: true)
                 if nonLinearRho.isEmpty {
                     nonLinearTSpace = tSpace
                     nonLinearRho = _rho.map { $0 / Double(realizations) }
@@ -189,7 +189,7 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
                 }
             }
             for (tSpace, trajectory) in nonLinearAntitheticTrajectories {
-                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalized: true)
+                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalize: true)
                 if nonLinearRho.isEmpty {
                     nonLinearTSpace = tSpace
                     nonLinearRho = _rho.map { $0 / Double(realizations) }
@@ -221,9 +221,9 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
     let masterEquationZ = rho.map { $0[0, 0].real - $0[1, 1].real }
     
     plt.figure()
-//    plt.plot(x: linearTSpace, y: linearX, label: "Lin <x>")
-//    plt.plot(x: linearTSpace, y: linearY, label: "Lin <y>")
-//    plt.plot(x: linearTSpace, y: linearZ, label: "Lin <z>")
+    plt.plot(x: linearTSpace, y: linearX, label: "Lin <x>")
+    plt.plot(x: linearTSpace, y: linearY, label: "Lin <y>")
+    plt.plot(x: linearTSpace, y: linearZ, label: "Lin <z>")
     
     plt.plot(x: nonLinearTSpace, y: nonLinearX, label: "Non-lin <x>", linestyle: "--")
     plt.plot(x: nonLinearTSpace, y: nonLinearY, label: "Non-lin <y>", linestyle: "--")

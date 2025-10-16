@@ -117,7 +117,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 7.0) {
                 return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, whiteNoise: w, diffusionOperator: sigmaMinus, customOperators: [customOperator], stepSize: 0.01)
             }
             for (tSpace, trajectory) in nonLinearTrajectories {
-                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalized: true)
+                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalize: true)
                 if nonLinearRho.isEmpty {
                     nonLinearTSpace = tSpace
                     nonLinearRho = _rho.map { $0 / Double(realizations) }

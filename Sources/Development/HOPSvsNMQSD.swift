@@ -120,7 +120,7 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
     let nonLinearTSpace = nonLinearTrajectories[0].tSpace
     var nonLinearRho: [Matrix<Complex<Double>>] = []
     for (_, trajectory, _) in nonLinearTrajectories {
-        let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalized: true)
+        let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalize: true)
         if nonLinearRho.isEmpty {
             nonLinearRho = _rho.map { $0 / Double(realizations) }
         } else {
@@ -133,7 +133,7 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
     let nonLinearShiftedTSpace = nonLinearShiftedTrajectories[0].tSpace
     var nonLinearShiftedRho: [Matrix<Complex<Double>>] = []
     for (_, trajectory, _) in nonLinearShiftedTrajectories {
-        let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalized: true)
+        let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalize: true)
         if nonLinearShiftedRho.isEmpty {
             nonLinearShiftedRho = _rho.map { $0 / Double(realizations) }
         } else {
