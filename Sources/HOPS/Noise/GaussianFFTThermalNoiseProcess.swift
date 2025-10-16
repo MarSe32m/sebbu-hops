@@ -56,6 +56,11 @@ public struct GaussianFFTThermalNoiseProcess: ComplexNoiseProcess, Sendable {
         return 1 / (Double.exp(omega/temperature) - 1)
     }
     
+    @inlinable
+    public func antithetic() -> GaussianFFTThermalNoiseProcess {
+        let newSpline = CubicHermiteSpline(x: spline.x, y: spline.y.map { -$0 })
+        return .init(spline: newSpline)
+    }
 }
 
 public struct GaussianFFTThermalNoiseProcessGenerator: NoiseProcessGenerator, Sendable {

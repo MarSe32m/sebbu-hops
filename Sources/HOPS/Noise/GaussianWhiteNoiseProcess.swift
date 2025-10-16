@@ -34,6 +34,11 @@ public class GaussianWhiteNoiseProcess: ComplexWhiteNoiseProcess, @unchecked Sen
     public func consumingSample(_ t: Double) -> Complex<Double> {
         sample(t)
     }
+    
+    @inlinable
+    public func antithetic() -> Self {
+        fatalError("Cannot define antithetic for GaussianWhiteNoiseProcess")
+    }
 }
 
 

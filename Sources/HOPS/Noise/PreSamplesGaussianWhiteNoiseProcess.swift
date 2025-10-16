@@ -8,7 +8,7 @@
 import Numerics
 import SebbuScience
 
-public class PreSampledGaussianWhiteNoiseProcess: ComplexWhiteNoiseProcess, @unchecked Sendable {
+public struct PreSampledGaussianWhiteNoiseProcess: ComplexWhiteNoiseProcess, @unchecked Sendable {
     @usableFromInline
     internal let interpolator: NearestNeighbourInterpolator<Complex<Double>>
     
@@ -20,7 +20,7 @@ public class PreSampledGaussianWhiteNoiseProcess: ComplexWhiteNoiseProcess, @unc
     }
     
     @inlinable
-    public convenience init(mean: Double, deviation: Double, start: Double, end: Double, step: Double) {
+    public init(mean: Double, deviation: Double, start: Double, end: Double, step: Double) {
         var tSpace: [Double] = []
         tSpace.reserveCapacity(Int((end - start) / step) + 1)
         var t = start
@@ -29,6 +29,11 @@ public class PreSampledGaussianWhiteNoiseProcess: ComplexWhiteNoiseProcess, @unc
             t += step
         }
         self.init(mean: mean, deviation: deviation, tSpace: tSpace)
+    }
+    
+    @inlinable
+    internal init(interpolator: NearestNeighbourInterpolator<Complex<Double>>) {
+        self.interpolator = interpolator
     }
     
     @inlinable
@@ -41,6 +46,12 @@ public class PreSampledGaussianWhiteNoiseProcess: ComplexWhiteNoiseProcess, @unc
     @inline(__always)
     public func consumingSample(_ t: Double) -> Complex<Double> {
         sample(t)
+    }
+    
+    @inlinable
+    public func antithetic() -> PreSampledGaussianWhiteNoiseProcess {
+        let newInterpolator = NearestNeighbourInterpolator(x: interpolator.x, y: interpolator.y.map { -$0 })
+        return PreSampledGaussianWhiteNoiseProcess(interpolator: newInterpolator)
     }
 }
 

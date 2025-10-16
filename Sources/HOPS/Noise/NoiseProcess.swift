@@ -13,6 +13,7 @@ public protocol NoiseProcess {
     func callAsFunction(_ t: Double) -> Element
     func sample(_ t: Double) -> Element
     mutating func consumingSample(_ t: Double) -> Element
+    func antithetic() -> Self
 }
 
 public extension NoiseProcess {

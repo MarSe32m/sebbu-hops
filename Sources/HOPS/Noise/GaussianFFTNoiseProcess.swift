@@ -80,6 +80,12 @@ public struct GaussianFFTNoiseProcess: ComplexNoiseProcess, @unchecked Sendable 
         let spline = CubicHermiteSpline(x: spline.x, y: spline.y.map { $0.conjugate })
         return GaussianFFTNoiseProcess(spline: spline)
     }
+    
+    @inlinable
+    public func antithetic() -> GaussianFFTNoiseProcess {
+        let newSpline = CubicHermiteSpline(x: spline.x, y: spline.y.map { -$0 })
+        return .init(spline: newSpline)
+    }
 }
 
 public struct GaussianFFTNoiseProcessGenerator: NoiseProcessGenerator, Sendable {

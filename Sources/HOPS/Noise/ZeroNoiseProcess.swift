@@ -29,7 +29,11 @@ public struct ZeroNoiseProcess: Sendable {
     }
 }
 
-extension ZeroNoiseProcess: ComplexNoiseProcess {}
+extension ZeroNoiseProcess: ComplexNoiseProcess {
+    public func antithetic() -> ZeroNoiseProcess {
+        self
+    }
+}
 extension ZeroNoiseProcess: ComplexWhiteNoiseProcess {}
 
 public struct ZeroNoiseProcessGenerator: NoiseProcessGenerator, Sendable {

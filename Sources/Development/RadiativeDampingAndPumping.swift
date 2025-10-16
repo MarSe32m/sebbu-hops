@@ -48,10 +48,10 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
     let hierarchy = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 3)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, Complex(0.1)], rows: 2, columns: 2)
-//    let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
-//        spectralDensity(omega: omega, A: A, omegaC: omegaC)
-//    }
-    let zGenerator = ZeroNoiseProcessGenerator()
+    let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
+        spectralDensity(omega: omega, A: A, omegaC: omegaC)
+    }
+    //let zGenerator = ZeroNoiseProcessGenerator()
     let whiteNoiseRGenerator = PreSampledGaussianWhiteNoiseProcessGenerator(mean: 0, deviation: gammaR / 2, start: 0, end: endTime, step: 0.01)
     let whiteNoisePGenerator = PreSampledGaussianWhiteNoiseProcessGenerator(mean: 0, deviation: gammaP / 2, start: 0, end: endTime, step: 0.01)
     
@@ -67,7 +67,7 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
     
     let _operatorSum = gammaRSigmaPlusSigmaMinus + gammaPSigmaMinusSigmaPlus
     
-    let batchSize = 64
+    let batchSize = 100
     
     let linearStart = ContinuousClock().now
     var trajectoriesComputed = 0
@@ -77,9 +77,9 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
         let trajectoriesToCompute = Swift.min(realizations - trajectoriesComputed, batchSize)
         trajectoriesComputed += trajectoriesToCompute
         let batchComputationTime = ContinuousClock().measure {
-            let noises = zGenerator.generateParallel(count: trajectoriesToCompute)
-            let whiteNoisesR = whiteNoiseRGenerator.generateParallel(count: trajectoriesToCompute)
-            let whiteNoisesP = whiteNoisePGenerator.generateParallel(count: trajectoriesToCompute)
+            let noises = zGenerator.generateParallel(count: trajectoriesToCompute / 2)
+            let whiteNoisesR = whiteNoiseRGenerator.generateParallel(count: trajectoriesToCompute / 2)
+            let whiteNoisesP = whiteNoisePGenerator.generateParallel(count: trajectoriesToCompute / 2)
             let linearTrajectories = zip(zip(noises, whiteNoisesR), whiteNoisesP).parallelMap { zwR, wP in
                 let z = zwR.0
                 let wR = zwR.1
@@ -89,10 +89,33 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
                 
                 return hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, z: z,
                                              whiteNoises: [wR, wP],
-                                             diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.01)
+                                             diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.1)
             }
-            
+            let linearAntitheticTrajectories = zip(zip(noises, whiteNoisesR), whiteNoisesP).parallelMap { zwR, wP in
+                let z = zwR.0
+                //let z = zwR.0.antithetic()
+                let wR = zwR.1.antithetic()
+                let wP = wP.antithetic()
+                let customOperator: @Sendable (Double, Vector<Complex<Double>>) -> Matrix<Complex<Double>> = { t, state in
+                    _operatorSum
+                }
+                
+                return hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, z: z,
+                                             whiteNoises: [wR, wP],
+                                             diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.1)
+            }
             for (tSpace, trajectory) in linearTrajectories {
+                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory)
+                if linearRho.isEmpty {
+                    linearTSpace = tSpace
+                    linearRho = _rho.map { $0 / Double(realizations) }
+                } else {
+                    for i in 0..<_rho.count {
+                        linearRho[i].add(_rho[i], multiplied: 1.0 / Double(realizations))
+                    }
+                }
+            }
+            for (tSpace, trajectory) in linearAntitheticTrajectories {
                 let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory)
                 if linearRho.isEmpty {
                     linearTSpace = tSpace
@@ -117,9 +140,9 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
         trajectoriesComputed += trajectoriesToCompute
         
         let batchComputationTime = ContinuousClock().measure {
-            let noises = zGenerator.generateParallel(count: trajectoriesToCompute)
-            let whiteNoisesR = whiteNoiseRGenerator.generateParallel(count: trajectoriesToCompute)
-            let whiteNoisesP = whiteNoisePGenerator.generateParallel(count: trajectoriesToCompute)
+            let noises = zGenerator.generateParallel(count: trajectoriesToCompute / 2)
+            let whiteNoisesR = whiteNoiseRGenerator.generateParallel(count: trajectoriesToCompute / 2)
+            let whiteNoisesP = whiteNoisePGenerator.generateParallel(count: trajectoriesToCompute / 2)
             let nonLinearTrajectories = zip(zip(noises, whiteNoisesR), whiteNoisesP).parallelMap { zwR, wP in
                 let z = zwR.0
                 let wR = zwR.1
@@ -134,9 +157,38 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
                 }
                 return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z,
                                                 whiteNoises: [wR, wP],
-                                                diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.01)
+                                                diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.1)
+            }
+            let nonLinearAntitheticTrajectories = zip(zip(noises, whiteNoisesR), whiteNoisesP).parallelMap { zwR, wP in
+                //let z = zwR.0.antithetic()
+                let z = zwR.0
+                let wR = zwR.1.antithetic()
+                let wP = wP.antithetic()
+                nonisolated(unsafe) var _O = sigmaMinus
+                let customOperator: (Double, Vector<Complex<Double>>) -> Matrix<Complex<Double>> = { t, state in
+                    _O.copyElements(from: _operatorSum)
+                    var factor = gammaR * state.inner(state, metric: sigmaPlus) / state.normSquared
+                    _O.add(sigmaMinus, multiplied: factor)
+                    factor = gammaP * state.inner(state, metric: sigmaMinus) / state.normSquared
+                    _O.add(sigmaPlus, multiplied: factor)
+                    return _O
+                }
+                return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z,
+                                                whiteNoises: [wR, wP],
+                                                diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.1)
             }
             for (tSpace, trajectory) in nonLinearTrajectories {
+                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalized: true)
+                if nonLinearRho.isEmpty {
+                    nonLinearTSpace = tSpace
+                    nonLinearRho = _rho.map { $0 / Double(realizations) }
+                } else {
+                    for i in 0..<_rho.count {
+                        nonLinearRho[i].add(_rho[i], multiplied: 1.0 / Double(realizations))
+                    }
+                }
+            }
+            for (tSpace, trajectory) in nonLinearAntitheticTrajectories {
                 let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalized: true)
                 if nonLinearRho.isEmpty {
                     nonLinearTSpace = tSpace

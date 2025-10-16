@@ -17,7 +17,7 @@ PythonLibrary.useLibrary(at: "/usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0")
 //TODO: Set the library path on Windows machine
 #endif
 
-radiativeDampingPlusPumpingExample(realizations: 1<<17, endTime: 750.0)
+radiativeDampingPlusPumpingExample(realizations: 25000, endTime: 750.0)
 radiativeDampingExample(realizations: 1<<17, endTime: 750.0)
 testHOPSDecomposedPropagation(endTime: 120.0, at: 3.5)
 QFunctionPlot(endTime: 10.0)
