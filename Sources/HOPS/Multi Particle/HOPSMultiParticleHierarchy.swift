@@ -26,7 +26,7 @@ public struct HOPSMultiParticleHierarchy: Sendable {
         /// Exact shift to anchor the Q-function of the auxiliary state oscillators to the origin.
         /// This will yield the most optimal shift, however at the cost of performance.
         /// You might want to check also whether the mean field shift gives good results and use that to increase performance.
-        case exact
+        //case exact
     }
     
     // Array containing the dot products kW
@@ -37,10 +37,10 @@ public struct HOPSMultiParticleHierarchy: Sendable {
     internal let B: CSRMatrix<Complex<Double>>
     // Sparse matrix containing the indices of the coupling to the upper levels in the hierarchy
     @usableFromInline
-    internal let P: CSRMatrix<Complex<Double>>
+    internal let P: [CSRMatrix<Complex<Double>>]
     // Sparse matrix containing the indicies of the coupling to the lower levels in the hierarchy
     @usableFromInline
-    internal let N: CSRMatrix<Complex<Double>>
+    internal let N: [CSRMatrix<Complex<Double>>]
     // G coefficients for the BCF
     @usableFromInline
     internal let G: [Complex<Double>]
@@ -48,8 +48,8 @@ public struct HOPSMultiParticleHierarchy: Sendable {
     @usableFromInline
     internal let W: [Complex<Double>]
     
-    /// The coupling operator
-    public let L: Matrix<Complex<Double>>
+    /// The coupling operators
+    public let L: [Matrix<Complex<Double>>]
     
     /// The system dimension
     public let dimension: Int
@@ -62,18 +62,47 @@ public struct HOPSMultiParticleHierarchy: Sendable {
     ///   - W: The W exponents of the bath correlation function exponential series
     ///   - depth: The depth of the hierarchy
     @inlinable
-    public init(dimension: Int, L: Matrix<Complex<Double>>, G: [Complex<Double>], W: [Complex<Double>], depth: Int) {
+    public init(dimension: Int, L: [Matrix<Complex<Double>>], G: [[[Complex<Double>]]], W: [[[Complex<Double>]]], depth: Int) {
+        self.init(dimension: dimension, L: L, G: G, W: W) { kTuple in
+            kTuple.reduce(0, +) <= depth
+        }
+    }
+    
+    /// Constructs a new HOPSHierarchy for subsequent trajectory calculations
+    /// - Parameters:
+    ///   - dimension: Dimension of the system Hilbert space
+    ///   - L: The environment coupling operator
+    ///   - G: The G coefficients of the bath correlation function exponential series
+    ///   - W: The W exponents of the bath correlation function exponential series
+    ///   - truncationCondition: Truncation condition for the hierarchy truncation
+    @inlinable
+    public init(dimension: Int, L: [Matrix<Complex<Double>>], G: [[[Complex<Double>]]], W: [[[Complex<Double>]]], truncationCondition: ([Int]) -> Bool) {
         precondition(G.count == W.count, "The G and W arrays must be of same size.")
-        precondition(dimension == L.columns)
-        let kTuples = HOPSHierarchy._generateKTuples(components: G.count, kMax: depth)
-        self.kWArray = HOPSHierarchy._generatekWArray(kTuples: kTuples, W: W)
-        let positiveNeighbourIndices = HOPSHierarchy._generatePositiveNeighbourIndices(kTuples: kTuples)
-        let negativeNeighbourIndices = HOPSHierarchy._generateNegativeNeighbourIndices(kTuples: kTuples)
-        self.B = HOPSHierarchy._generateRescaledBMatrix(L: L, kTuples: kTuples, positiveNeighbourIndices: positiveNeighbourIndices, negativeNeighbourIndices: negativeNeighbourIndices, G: G)
+        for L in L { precondition(dimension == L.columns) }
+        precondition(L.count == G.count)
+        precondition(G.count == W.count)
+        for i in G.indices {
+            precondition(G[i].count == W[i].count)
+            precondition(G[i].count == L.count)
+            for j in G[i].indices {
+                precondition(G[i][j].count == W[i][j].count)
+            }
+        }
+        
+        let flatG = G.flatMap { $0 }.flatMap { $0 }
+        let flatW = W.flatMap { $0 }.flatMap { $0 }
+        let kTuples = HOPSMultiParticleHierarchy._generateKTuples(components: flatG.count, truncationCondition: truncationCondition)
+        let positiveNeighbourIndices = HOPSMultiParticleHierarchy._generatePositiveNeighbourIndices(kTuples: kTuples)
+        let negativeNeighbourIndices = HOPSMultiParticleHierarchy._generateNegativeNeighbourIndices(kTuples: kTuples)
+        let kTupleComponentIndexMap = HOPSMultiParticleHierarchy._generateKTupleComponentIndexMap(systems: L.count, G: G)
+        
+        self.kWArray = HOPSHierarchy._generatekWArray(kTuples: kTuples, W: flatW)
+        
+        self.B = HOPSMultiParticleHierarchy._generateRescaledBMatrix(L: L, kTuples: kTuples, positiveNeighbourIndices: positiveNeighbourIndices, negativeNeighbourIndices: negativeNeighbourIndices, G: G)
         self.P = HOPSHierarchy._generateRescaledPMatrix(dimension: L.columns, kTuples: kTuples, G: G, positiveNeighbourIndices: positiveNeighbourIndices)
         self.N = HOPSHierarchy._generateRescaledNMatrix(dimension: L.columns, kTuples: kTuples, G: G, negativeNeighbourIndices: negativeNeighbourIndices)
-        self.G = G
-        self.W = W
+        self.G = flatG
+        self.W = flatW
         self.L = L
         self.dimension = dimension
     }
@@ -104,25 +133,23 @@ public struct HOPSMultiParticleHierarchy: Sendable {
     
     @inlinable
     internal static func _generateKTuples(components: Int, truncationCondition: ([Int]) -> Bool) -> [[Int]] {
-        var result: [[Int]] = [.init(repeating: 0, count: components)]
-        var currentLevel: Set<[Int]> = Set(result)
-        var nextLevel: Set<[Int]> = currentLevel
-        while !nextLevel.isEmpty {
-            currentLevel = nextLevel
-            nextLevel.removeAll()
-            for kTuple in currentLevel {
-                for i in kTuple.indices {
-                    var neighbour = kTuple
-                    neighbour[i] += 1
-                    if truncationCondition(neighbour) {
-                        if nextLevel.insert(neighbour).inserted {
-                            result.append(neighbour)
-                        }
-                    }
+        var kVectors: [[Int]] = []
+        for sum in 0... {
+            let partitions = sum.partitions(maxTerms: components).map { partition in
+                if partition.count == components { return partition }
+                precondition(partition.count < components)
+                return partition + [Int](repeating: 0, count: components - partition.count)
+            }
+            var validKTuplesFound = false
+            for partition in partitions {
+                for permutation in partition.lazy.uniquePermutations().filter(truncationCondition) {
+                    kVectors.append(permutation)
+                    validKTuplesFound = true
                 }
             }
+            if !validKTuplesFound { break }
         }
-        return result
+        return kVectors
     }
 
     @inlinable
@@ -183,69 +210,37 @@ public struct HOPSMultiParticleHierarchy: Sendable {
     }
 
     @inlinable
-    internal static func _generateBMatrix(L: Matrix<Complex<Double>>, kTuples: [[Int]], positiveNeighbourIndices: [[(component: Int, neighbourIndex: Int)]], negativeNeighbourIndices: [[(component: Int, neighbourIndex: Int)]], G: [Complex<Double>]) -> CSRMatrix<Complex<Double>> {
-        var lilMatrix = LILMatrix<Complex<Double>>(rows: L.rows * kTuples.count, columns: L.columns * kTuples.count)
-        let Ldagger = L.conjugateTranspose
-        for (index, kTuple) in kTuples.enumerated() {
-            let row = index
-            let positiveNeighbours = positiveNeighbourIndices[index]
-            let negativeNeighbours = negativeNeighbourIndices[index]
-            for (_, positiveNeighbourIndex) in positiveNeighbours {
-                let column = positiveNeighbourIndex
-                for i in 0..<Ldagger.rows {
-                    for j in 0..<Ldagger.columns {
-                        if Ldagger[i, j] != .zero {
-                            lilMatrix[row * L.rows + i, column * L.columns + j] = -Ldagger[i, j]
-                        }
-                    }
-                }
-            }
-            for (kIndex, negativeNeighbourIndex) in negativeNeighbours {
-                let column = negativeNeighbourIndex
-                if kTuple[kIndex] == .zero || G[kIndex] == .zero { continue }
-                let kG = Double(kTuple[kIndex]) * G[kIndex]
-                for i in 0..<L.rows {
-                    for j in 0..<L.columns {
-                        if L[i, j] != .zero {
-                            lilMatrix[row * L.rows + i, column * L.columns + j] = kG * L[i, j]
-                        }
-                    }
+    internal static func _generateKTupleComponentIndexMap(systems: Int, G: [[[Complex<Double>]]]) -> [(n: Int, m: Int, mu: Int)] {
+        var result: [(Int, Int, Int)] = []
+        for n in 0..<systems {
+            for m in 0..<systems {
+                for mu in G[n][m].indices {
+                    result.append((n, m, mu))
                 }
             }
         }
-        return CSRMatrix(from: lilMatrix)
-    }
-
-    @inlinable
-    internal static func _generatePMatrix(dimension: Int, positiveNeighbourIndices: [[(component: Int, neighbourIndex: Int)]]) -> CSRMatrix<Complex<Double>> {
-        var lilMatrix = LILMatrix<Complex<Double>>(rows: dimension * positiveNeighbourIndices.count, columns: dimension * positiveNeighbourIndices.count)
-        for (index, positiveNeighbours) in positiveNeighbourIndices.enumerated() {
-            let row = index
-            for (_ ,positiveNeighbourIndex) in positiveNeighbours {
-                let column = positiveNeighbourIndex
-                for i in 0..<dimension {
-                    lilMatrix[row * dimension + i, column * dimension + i] = .one
-                }
-            }
-        }
-        return CSRMatrix(from: lilMatrix)
+        return result
     }
     
     @inlinable
-    internal static func _generateRescaledBMatrix(L: Matrix<Complex<Double>>, kTuples: [[Int]], positiveNeighbourIndices: [[(component: Int, neighbourIndex: Int)]], negativeNeighbourIndices: [[(component: Int, neighbourIndex: Int)]], G: [Complex<Double>]) -> CSRMatrix<Complex<Double>> {
-        var lilMatrix = LILMatrix<Complex<Double>>(rows: L.rows * kTuples.count, columns: L.columns * kTuples.count)
-        let Ldagger = L.conjugateTranspose
+    internal static func _generateBMatrix(L: [Matrix<Complex<Double>>], kTuples: [[Int]], G: [Complex<Double>],
+                                          positiveNeighbourIndices: [[(component: Int, neighbourIndex: Int)]],
+                                          negativeNeighbourIndices: [[(component: Int, neighbourIndex: Int)]],
+                                          kTupleCoordinateMap: [(n: Int, m: Int, mu: Int)]) -> CSRMatrix<Complex<Double>> {
+        var lilMatrix = LILMatrix<Complex<Double>>(rows: L[0].rows * kTuples.count, columns: L[0].columns * kTuples.count)
         for (index, kTuple) in kTuples.enumerated() {
             let row = index
             let positiveNeighbours = positiveNeighbourIndices[index]
             let negativeNeighbours = negativeNeighbourIndices[index]
             for (kIndex, positiveNeighbourIndex) in positiveNeighbours {
                 let column = positiveNeighbourIndex
+                let (n, _, _) = kTupleCoordinateMap[kIndex]
                 let kG = Double(kTuple[kIndex] + 1).squareRoot() * .sqrt(G[kIndex])
-                for i in 0..<Ldagger.rows {
-                    for j in 0..<Ldagger.columns {
-                        if Ldagger[i, j] != .zero {
-                            lilMatrix[row * L.rows + i, column * L.columns + j] = -kG * Ldagger[i, j]
+                let LnDagger = L[n].conjugateTranspose
+                for i in 0..<LnDagger.rows {
+                    for j in 0..<LnDagger.columns {
+                        if LnDagger[i, j] != .zero {
+                            lilMatrix[row * LnDagger.rows + i, column * LnDagger.columns + j] = -kG * LnDagger[i, j]
                         }
                     }
                 }
@@ -253,11 +248,13 @@ public struct HOPSMultiParticleHierarchy: Sendable {
             for (kIndex, negativeNeighbourIndex) in negativeNeighbours {
                 let column = negativeNeighbourIndex
                 if kTuple[kIndex] == .zero || G[kIndex] == .zero { continue }
+                let (_, m, _) = kTupleCoordinateMap[kIndex]
                 let kG = Double(kTuple[kIndex]).squareRoot() * .sqrt(G[kIndex])
-                for i in 0..<L.rows {
-                    for j in 0..<L.columns {
-                        if L[i, j] != .zero {
-                            lilMatrix[row * L.rows + i, column * L.columns + j] = kG * L[i, j]
+                let Lm = L[m]
+                for i in 0..<Lm.rows {
+                    for j in 0..<Lm.columns {
+                        if Lm[i, j] != .zero {
+                            lilMatrix[row * Lm.rows + i, column * Lm.columns + j] = kG * Lm[i, j]
                         }
                     }
                 }
@@ -267,7 +264,9 @@ public struct HOPSMultiParticleHierarchy: Sendable {
     }
 
     @inlinable
-    internal static func _generateRescaledPMatrix(dimension: Int, kTuples: [[Int]], G: [Complex<Double>], positiveNeighbourIndices: [[(component: Int, neighbourIndex: Int)]]) -> CSRMatrix<Complex<Double>> {
+    internal static func _generatePMatrix(systems: Int, dimension: Int, kTuples: [[Int]],
+                                          G: [Complex<Double>],
+                                          positiveNeighbourIndices: [[(component: Int, neighbourIndex: Int)]]) -> CSRMatrix<Complex<Double>> {
         var lilMatrix = LILMatrix<Complex<Double>>(rows: dimension * positiveNeighbourIndices.count, columns: dimension * positiveNeighbourIndices.count)
         for (index, kTuple) in kTuples.enumerated() {
             let row = index
@@ -298,51 +297,18 @@ public struct HOPSMultiParticleHierarchy: Sendable {
         return CSRMatrix(from: lilMatrix)
     }
     
-    @inlinable
-    internal static func _generateCreationOperators(dimension: Int, kTuples: [[Int]], negativeNeighbourIndices: [[(component: Int, neighbourIndex: Int)]]) -> [CSRMatrix<Complex<Double>>] {
-        var lilMatrices: [LILMatrix<Complex<Double>>] = .init(repeating: LILMatrix<Complex<Double>>(rows: dimension * negativeNeighbourIndices.count, columns: dimension * negativeNeighbourIndices.count), count: kTuples[0].count)
-        for (index, kTuple) in kTuples.enumerated() {
-            let row = index
-            let negativeNeighbours = negativeNeighbourIndices[index]
-            for (kIndex, negativeNeighbourIndex) in negativeNeighbours {
-                let column = negativeNeighbourIndex
-                for i in 0..<dimension {
-                    lilMatrices[kIndex][row * dimension + i, column * dimension + i] = Complex(Double(kTuple[kIndex]).squareRoot())
-                }
-            }
-        }
-        return lilMatrices.map { CSRMatrix(from: $0) }
-    }
-    
-    @inlinable
-    internal static func _generateAnnihilationOperators(dimension: Int, kTuples: [[Int]], positiveNeighbourIndices: [[(component: Int, neighbourIndex: Int)]]) -> [CSRMatrix<Complex<Double>>] {
-        var lilMatrices: [LILMatrix<Complex<Double>>] = .init(repeating: LILMatrix<Complex<Double>>(rows: dimension * positiveNeighbourIndices.count, columns: dimension * positiveNeighbourIndices.count), count: kTuples[0].count)
-        for (index, kTuple) in kTuples.enumerated() {
-            let row = index
-            let positiveNeighbours = positiveNeighbourIndices[index]
-            for (kIndex, positiveNeighbourIndex) in positiveNeighbours {
-                let column = positiveNeighbourIndex
-                for i in 0..<dimension {
-                    lilMatrices[kIndex][row * dimension + i, column * dimension + i] = Complex(Double(kTuple[kIndex] + 1).squareRoot())
-                }
-            }
-        }
-        return lilMatrices.map { CSRMatrix(from: $0) }
-    }
-    
-    
     /// Maps a HOPS trajectory to the corresponding density matrix
     /// - Parameters:
     ///   - trajectory: The HOPS trajectory to map to density matrix
     ///   - normalized: Whether the trajectory should be normalized. Default value is false.
     /// - Returns: Array of density matrices
     @inlinable
-    public func mapTrajectoryToDensityMatrix(_ trajectory: [Vector<Complex<Double>>], normalized: Bool = false) -> [Matrix<Complex<Double>>] {
+    public func mapTrajectoryToDensityMatrix(_ trajectory: [Vector<Complex<Double>>], normalize: Bool = false) -> [Matrix<Complex<Double>>] {
         var rho: [Matrix<Complex<Double>>] = []
         rho.reserveCapacity(trajectory.count)
         for state in trajectory {
             rho.append(state.outer(state.conjugate))
-            if normalized { rho[rho.count - 1] /= state.normSquared }
+            if normalize { rho[rho.count - 1] /= state.normSquared }
         }
         return rho
     }

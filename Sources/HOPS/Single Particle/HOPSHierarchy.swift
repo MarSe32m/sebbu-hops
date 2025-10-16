@@ -26,7 +26,7 @@ public struct HOPSHierarchy: Sendable {
         /// Exact shift to anchor the Q-function of the auxiliary state oscillators to the origin.
         /// This will yield the most optimal shift, however at the cost of performance.
         /// You might want to check also whether the mean field shift gives good results and use that to increase performance.
-        case exact
+        //case exact
     }
     
     // Array containing the dot products kW
@@ -70,13 +70,25 @@ public struct HOPSHierarchy: Sendable {
     ///   - W: The W exponents of the bath correlation function exponential series
     ///   - depth: The depth of the hierarchy
     @inlinable
-    public init(dimension: Int, L: Matrix<Complex<Double>>, G: [Complex<Double>], W: [Complex<Double>], depth: Int, truncationCondition: (([Int]) -> Bool)? = nil) {
+    public init(dimension: Int, L: Matrix<Complex<Double>>, G: [Complex<Double>], W: [Complex<Double>], depth: Int) {
+        self.init(dimension: dimension, L: L, G: G, W: W) { kTuple in
+            kTuple.reduce(0, +) <= depth
+        }
+    }
+    
+    /// Constructs a new HOPSHierarchy for subsequent trajectory calculations
+    /// - Parameters:
+    ///   - dimension: Dimension of the system Hilbert space
+    ///   - L: The environment coupling operator
+    ///   - G: The G coefficients of the bath correlation function exponential series
+    ///   - W: The W exponents of the bath correlation function exponential series
+    ///   - truncationCondition: The truncation condition for the hierarchy truncation
+    @inlinable
+    public init(dimension: Int, L: Matrix<Complex<Double>>, G: [Complex<Double>], W: [Complex<Double>], truncationCondition: (([Int]) -> Bool)) {
         precondition(G.count == W.count, "The G and W arrays must be of same size.")
         precondition(dimension == L.columns)
         //let kTuples = HOPSHierarchy._generateKTuples(components: G.count, kMax: depth)
-        let kTuples = HOPSHierarchy._generateKTuples(components: G.count) { kTuple in
-            truncationCondition?(kTuple) ?? (kTuple.reduce(0, +) <= depth)
-        }
+        let kTuples = HOPSHierarchy._generateKTuples(components: G.count, truncationCondition: truncationCondition)
         self.kWArray = HOPSHierarchy._generatekWArray(kTuples: kTuples, W: W)
         let positiveNeighbourIndices = HOPSHierarchy._generatePositiveNeighbourIndices(kTuples: kTuples)
         let negativeNeighbourIndices = HOPSHierarchy._generateNegativeNeighbourIndices(kTuples: kTuples)
@@ -92,30 +104,6 @@ public struct HOPSHierarchy: Sendable {
     }
     
     @inlinable
-    internal static func _generateKTuples(components: Int, kMax: Int) -> [[Int]] {
-        var kVectors: [[Int]] = []
-        for sum in 0...kMax {
-            let partitions = sum.partitions(maxTerms: components).map { partition in
-                if partition.count == components { return partition }
-                precondition(partition.count < components)
-                return partition + [Int](repeating: 0, count: components - partition.count)
-            }
-            for partition in partitions {
-                for permutation in partition.uniquePermutations() {
-                    assert(permutation.reduce(0, +) <= kMax, "The sum of the components exceeded the maximum allowed value \(sum), \(permutation)")
-                    #if DEBUG
-                    if kVectors.contains(permutation) {
-                        fatalError("Duplicate k-vector")
-                    }
-                    #endif
-                    kVectors.append(permutation)
-                }
-            }
-        }
-        return kVectors
-    }
-    
-    @inlinable
     internal static func _generateKTuples(components: Int, truncationCondition: ([Int]) -> Bool) -> [[Int]] {
         var kVectors: [[Int]] = []
         for sum in 0... {
@@ -126,7 +114,7 @@ public struct HOPSHierarchy: Sendable {
             }
             var validKTuplesFound = false
             for partition in partitions {
-                for permutation in partition.uniquePermutations().filter(truncationCondition) {
+                for permutation in partition.lazy.uniquePermutations().filter(truncationCondition) {
                     kVectors.append(permutation)
                     validKTuplesFound = true
                 }
@@ -348,12 +336,12 @@ public struct HOPSHierarchy: Sendable {
     ///   - normalized: Whether the trajectory should be normalized. Default value is false.
     /// - Returns: Array of density matrices
     @inlinable
-    public func mapTrajectoryToDensityMatrix(_ trajectory: [Vector<Complex<Double>>], normalized: Bool = false) -> [Matrix<Complex<Double>>] {
+    public func mapTrajectoryToDensityMatrix(_ trajectory: [Vector<Complex<Double>>], normalize: Bool = false) -> [Matrix<Complex<Double>>] {
         var rho: [Matrix<Complex<Double>>] = []
         rho.reserveCapacity(trajectory.count)
         for state in trajectory {
             rho.append(state.outer(state.conjugate))
-            if normalized { rho[rho.count - 1] /= state.normSquared }
+            if normalize { rho[rho.count - 1] /= state.normSquared }
         }
         return rho
     }
