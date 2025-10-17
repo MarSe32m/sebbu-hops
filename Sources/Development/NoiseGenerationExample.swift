@@ -37,6 +37,37 @@ func plotGaussianNoiseVsBCF<T: NoiseProcessGenerator>(count: Int, generator: T, 
     plt.close()
 }
 
+func plotGaussianMultiNoiseVsBCF<T: MultiNoiseProcessGenerator>(count: Int, generator: T, tSpace: [Double], bcfs: [(Double) -> Complex<Double>]) where T.Process: ComplexNoiseProcess, T: Sendable {
+    let s = tSpace[0]
+    let noises = generator.generateParallel(count: count)
+    let bcfs = bcfs.map { bcf in tSpace.map { bcf($0) } }
+    
+    for i in 0..<bcfs.count {
+        let noises = noises.map { $0[i] }
+        let bcf = bcfs[i]
+        let meanBCF = tSpace.parallelMap { t in
+            var result: Complex<Double> = .zero
+            for z in noises {
+                let zt = z(t)
+                let zs = z(s)
+                result += zt * zs.conjugate
+            }
+            return result / Double(count)
+        }
+        plt.figure()
+        plt.plot(x: tSpace, y: meanBCF.real, label: "Re <z(t)z(s)^*>")
+        plt.plot(x: tSpace, y: meanBCF.imaginary, label: "Im <z(t)z(s)^*>")
+        
+        plt.plot(x: tSpace, y: bcf.real, label: "Re alpha(t - s)")
+        plt.plot(x: tSpace, y: bcf.imaginary, label: "Im alpha(t - s)")
+        plt.legend()
+        plt.xlabel("t")
+        plt.ylabel("BCF")
+        plt.title("Multi noise \(i)")
+        plt.show()
+        plt.close()
+    }
+}
 
 func noiseGenerationExample() {
     let A = 0.027
@@ -50,4 +81,21 @@ func noiseGenerationExample() {
     plotGaussianNoiseVsBCF(count: 10000, generator: generator, tSpace: tSpace) { t in
         bcfSpline.sample(t)
     }
+}
+
+func multiNoiseGenerationExample() {
+    let A = [0.027, 0.1, 0.4]
+    let omegaC = [1.447, 2.0, 1.0]
+    let tSpace = [Double].linearSpace(0, 10, 1000)
+    let bcfs = zip(A, omegaC).map { a, ksi in tSpace.map { bathCorrelationFunction(A: a, omegaC: ksi, t: $0) } }
+    let bcfSplines = bcfs.map { CubicHermiteSpline(x: tSpace, y: $0) }
+    let bcfClosures = bcfSplines.map { spline in
+        { (_ t: Double) -> Complex<Double> in
+            spline.sample(t)
+        }
+    }
+    let generator = GaussianFFTMultiNoiseProcessGenerator(tMax: tSpace.last!) { omega in
+            .diagonal(from: zip(A, omegaC).map { a, ksi in Complex(spectralDensity(omega: omega, A: a, omegaC: ksi)) })
+    }
+    plotGaussianMultiNoiseVsBCF(count: 5000, generator: generator, tSpace: tSpace, bcfs: bcfClosures)
 }

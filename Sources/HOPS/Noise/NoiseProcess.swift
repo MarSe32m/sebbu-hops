@@ -45,6 +45,27 @@ public extension NoiseProcessGenerator where Self: Sendable {
     }
 }
 
+public protocol MultiNoiseProcessGenerator {
+    associatedtype Process: NoiseProcess & Sendable
+    func generate() -> [Process]
+}
+
+public extension MultiNoiseProcessGenerator {
+    @inlinable
+    @inline(__always)
+    func generate(count: Int) -> [[Process]] {
+        (0..<count).map { _ in self.generate() }
+    }
+}
+
+public extension MultiNoiseProcessGenerator where Self: Sendable {
+    @inlinable
+    @inline(__always)
+    func generateParallel(count: Int) -> [[Process]] {
+        (0..<count).parallelMap { _ in self.generate() }
+    }
+}
+
 public protocol RealNoiseProcess: NoiseProcess where Element == Double {}
 public protocol ComplexNoiseProcess: NoiseProcess where Element == Complex<Double> {}
 
