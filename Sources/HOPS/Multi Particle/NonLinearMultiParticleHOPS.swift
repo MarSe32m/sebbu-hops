@@ -368,7 +368,6 @@ public extension HOPSMultiParticleHierarchy {
         }
         let initialStateVectorForShift: Vector<Complex<Double>> = .zero(G.count)
         var systemState: Vector<Complex<Double>> = initialState
-        let GConjugateVector: Vector<Complex<Double>> = .init(G.map { $0.conjugate })
         let WConjugateVector: Vector<Complex<Double>> = .init(W.map { -$0.conjugate })
         let LDagger = L.map { $0.conjugateTranspose }
         var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialStateVector.count), .zero(G.count)], count: 4)
@@ -453,7 +452,7 @@ public extension HOPSMultiParticleHierarchy {
                         var index = 0
                         var kWIndex = 0
                         while index < resultBuffer.count {
-                            Heff._dot(currentStatePointer, into: resultPointer)
+                            Heff.dot(currentStatePointer, into: resultPointer)
                             let kW = kWSpan[unchecked: kWIndex]
                             for i in 0..<dimension {
                                 resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])

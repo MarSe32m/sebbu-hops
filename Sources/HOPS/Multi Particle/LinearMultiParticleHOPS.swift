@@ -337,7 +337,7 @@ public extension HOPSMultiParticleHierarchy {
                         var index = 0
                         var kWIndex = 0
                         while index < resultBuffer.count {
-                            Heff._dot(currentStatePointer, into: resultPointer)
+                            Heff.dot(currentStatePointer, into: resultPointer)
                             let kW = kWSpan[unchecked: kWIndex]
                             for i in 0..<dimension {
                                 resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])

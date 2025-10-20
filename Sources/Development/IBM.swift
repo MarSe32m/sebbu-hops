@@ -111,7 +111,7 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
     
     let nonLinearTSpace = nonLinearTrajectories[0].tSpace
     var nonLinearRho: [Matrix<Complex<Double>>] = []
-    for (_, trajectory, _) in nonLinearTrajectories {
+    for (_, trajectory) in nonLinearTrajectories {
         let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalize: true)
         if nonLinearRho.isEmpty {
             nonLinearRho = _rho.map { $0 / Double(realizations) }

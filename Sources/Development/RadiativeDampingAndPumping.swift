@@ -30,7 +30,7 @@ private func masterEquationSolution(endTime: Double, initialRho: Matrix<Complex<
 }
 
 public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Double = 7.0) {
-    let A = 0.000027
+    let A = 0.0000027
     let omegaC = 1.447
     let gammaR = 0.0175
     let gammaP = 0.0175 / 2
@@ -67,7 +67,7 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
     
     let _operatorSum = gammaRSigmaPlusSigmaMinus + gammaPSigmaMinusSigmaPlus
     
-    let batchSize = 256
+    let batchSize = 512
     
     let linearStart = ContinuousClock().now
     var trajectoriesComputed = 0
@@ -92,8 +92,7 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
                                              diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.1)
             }
             let linearAntitheticTrajectories = zip(zip(noises, whiteNoisesR), whiteNoisesP).parallelMap { zwR, wP in
-                let z = zwR.0
-                //let z = zwR.0.antithetic()
+                let z = zwR.0.antithetic()
                 let wR = zwR.1.antithetic()
                 let wP = wP.antithetic()
                 let customOperator: @Sendable (Double, Vector<Complex<Double>>) -> Matrix<Complex<Double>> = { t, state in
@@ -160,8 +159,7 @@ public func radiativeDampingPlusPumpingExample(realizations: Int, endTime: Doubl
                                                 diffusionOperators: [sigmaMinus, sigmaPlus], customOperators: [customOperator], stepSize: 0.1)
             }
             let nonLinearAntitheticTrajectories = zip(zip(noises, whiteNoisesR), whiteNoisesP).parallelMap { zwR, wP in
-                //let z = zwR.0.antithetic()
-                let z = zwR.0
+                let z = zwR.0.antithetic()
                 let wR = zwR.1.antithetic()
                 let wP = wP.antithetic()
                 nonisolated(unsafe) var _O = sigmaMinus

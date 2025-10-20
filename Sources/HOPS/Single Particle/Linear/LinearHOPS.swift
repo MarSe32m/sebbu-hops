@@ -1,0 +1,150 @@
+//
+//  LinearHOPS.swift
+//  sebbu-hops
+//
+//  Created by Sebastian Toivonen on 16.5.2025.
+//
+
+import SebbuScience
+import Numerics
+import SebbuCollections
+import DequeModule
+
+public extension HOPSHierarchy {
+    /// Solve the linear HOPS equation for this hierarchy
+    /// - Parameters:
+    ///   - start: Start time of the simulation. Default value is 0.0
+    ///   - end: End time of the simulation
+    ///   - initialState: Initial state of the system
+    ///   - H: The Hamiltonian operator
+    ///   - z: The environment Gaussian noise process
+    ///   - customOperators: Custom linear operators for the diagonal part of the hierarchy
+    ///   - stepSize: Simulation step size. Default value is 0.01
+    /// - Returns: A tuple containing the time points and the corresponding system state vectors
+    @inlinable
+    @inline(__always)
+    func solveLinear<Noise>(start: Double = 0.0,
+                            end: Double,
+                            initialState: Vector<Complex<Double>>,
+                            H: Matrix<Complex<Double>>,
+                            z: Noise,
+                            customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
+                            stepSize: Double = 0.01,
+                            includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
+        solveLinear(start: start,
+                    end: end,
+                    initialState: initialState,
+                    H: { _ in H },
+                    z: z,
+                    customOperators: customOperators,
+                    stepSize: stepSize,
+                    includeHierarchy: includeHierarchy)
+    }
+    
+    /// Solve the linear HOPS equation for this hierarchy
+    /// - Parameters:
+    ///   - start: Start time of the simulation. Default value is 0.0
+    ///   - end: End time of the simulation
+    ///   - initialState: Initial state of the system
+    ///   - H: The time dependent Hamiltonian operator
+    ///   - z: The environment Gaussian noise process
+    ///   - customOperators: Custom linear operators for the diagonal part of the hierarchy
+    ///   - stepSize: Simulation step size. Default value is 0.01
+    /// - Returns: A tuple containing the time points and the corresponding system state vectors
+    @inlinable
+    func solveLinear<Noise>(start: Double = 0.0,
+                            end: Double,
+                            initialState: Vector<Complex<Double>>,
+                            H: (Double) -> Matrix<Complex<Double>>,
+                            z: Noise,
+                            customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
+                            stepSize: Double = 0.01,
+                            includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
+        return withoutActuallyEscaping(H) { H in
+            var propagator = linearPropagator(start: start, initialSystemState: initialState, H: H, z: z, customOperators: customOperators, stepSize: stepSize)
+                
+            let resultDimension = includeHierarchy ? self.B.columns : dimension
+            var tSpace: [Double] = []
+            tSpace.reserveCapacity(Int((end - start) / stepSize) + 2)
+            var trajectory: [Vector<Complex<Double>>] = .init(repeating: .zero(resultDimension), count: tSpace.capacity)
+            var index = 0
+            while propagator.t < end {
+                let (t, state) = propagator.step()
+                if index >= trajectory.count {
+                    trajectory.append(.zero(resultDimension))
+                }
+                for i in 0..<resultDimension {
+                    trajectory[index][i] = state[0][i]
+                }
+                tSpace.append(t)
+                index += 1
+            }
+            trajectory.removeLast(trajectory.count - tSpace.count)
+            return (tSpace, trajectory)
+        }
+    }
+    
+    @inlinable
+    func linearPropagator<Noise>(start: Double,
+                                 initialSystemState: Vector<Complex<Double>>,
+                                 H: @escaping (Double) -> Matrix<Complex<Double>>,
+                                 z: Noise,
+                                 customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>],
+                                 stepSize: Double) -> HOPSPropagator where Noise: ComplexNoiseProcess {
+        precondition(initialSystemState.count == dimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial state")
+        var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
+        for i in 0..<initialSystemState.count {
+            initialStateVector[i] = initialSystemState[i]
+        }
+        return linearPropagator(start: start, initialHierarchy: initialStateVector, H: H, z: z, customOperators: customOperators, stepSize: stepSize)
+    }
+    
+    @inlinable
+    func linearPropagator<Noise>(start: Double,
+                                 initialHierarchy: Vector<Complex<Double>>,
+                                 H: @escaping (Double) -> Matrix<Complex<Double>>,
+                                 z: Noise,
+                                 customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>],
+                                 stepSize: Double) -> HOPSPropagator where Noise: ComplexNoiseProcess {
+        var systemState: Vector<Complex<Double>> = .zero(dimension)
+        var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialHierarchy.count)], count: 4)
+        var Heff = H(start)
+        let solver = RK45FixedStep(initialState: [initialHierarchy], t0: start, dt: stepSize) { t, currentState in
+            for i in 0..<dimension {
+                systemState[i] = currentState[0][i]
+            }
+            var result = resultCache.removeFirst()
+            defer { resultCache.append(result) }
+            Heff.zeroElements()
+            Heff.add(H(t), multiplied: -.i)
+            let z = z(t).conjugate
+            Heff.add(L, multiplied: z)
+            for customOperator in customOperators {
+                Heff.add(customOperator(t, systemState))
+            }
+            let kWSpan = kWArray.span
+            result[0].components.withUnsafeMutableBufferPointer { resultBuffer in
+                currentState[0].components.withUnsafeBufferPointer { currentStateBuffer in
+                    var resultPointer = resultBuffer.baseAddress!
+                    var currentStatePointer = currentStateBuffer.baseAddress!
+                    var index = 0
+                    var kWIndex = 0
+                    while index < resultBuffer.count {
+                        Heff._dot(currentStatePointer, into: resultPointer)
+                        let kW = kWSpan[unchecked: kWIndex]
+                        for i in 0..<dimension {
+                            resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
+                        }
+                        resultPointer += dimension
+                        currentStatePointer += dimension
+                        index &+= dimension
+                        kWIndex &+= 1
+                    }
+                }
+            }
+            B.dot(currentState[0], addingInto: &result[0])
+            return result
+        }
+        return HOPSPropagator(solver)
+    }
+}

@@ -57,8 +57,8 @@ public func QFunctionPlot(endTime: Double) {
     let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
     
     let (linearTSpace, linearTrajectory) = hierarchy1.solveLinear(end: endTime, initialState: initialState, H: H, z: noise, stepSize: 0.01, includeHierarchy: true)
-    let (nonLinearTSpace, nonLinearTrajectory, _) = hierarchy1.solveNonLinear(end: endTime, initialState: initialState, H: H, z: noise, shiftType: .none, stepSize: 0.01, includeHierarchy: true)
-    let (nonLinearMeanShiftedTSpace, nonLinearMeanShiftedTrajectory, shift) = hierarchy2.solveNonLinear(end: endTime, initialState: initialState, H: H, z: noise, shiftType: .meanField, stepSize: 0.01, includeHierarchy: true)
+    let (nonLinearTSpace, nonLinearTrajectory) = hierarchy1.solveNonLinear(end: endTime, initialState: initialState, H: H, z: noise, shiftType: .none, stepSize: 0.01, includeHierarchy: true)
+    let (nonLinearMeanShiftedTSpace, nonLinearMeanShiftedTrajectory) = hierarchy2.solveNonLinear(end: endTime, initialState: initialState, H: H, z: noise, shiftType: .meanField, stepSize: 0.01, includeHierarchy: true)
     let (nonLinearExactShiftedTSpace, nonLinearExactShiftedTrajectory, exactShift) = hierarchy2.solveNonLinearShifted(end: endTime, initialState: initialState, H: H, z: noise, stepSize: 0.01, includeHierarchy: true)
     
     let nonLinearMeanShifted = hierarchy1.mapTrajectoryToDensityMatrix( nonLinearMeanShiftedTrajectory.map {Vector(Array($0.components[0..<2]))})

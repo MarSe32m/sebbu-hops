@@ -84,14 +84,14 @@ public struct HOPSMultiParticleHierarchy: Sendable {
     @inlinable
     public init(dimension: Int, L: [Matrix<Complex<Double>>], G: [[[Complex<Double>]]], W: [[[Complex<Double>]]], truncationCondition: ([Int]) -> Bool) {
         precondition(G.count == W.count, "The G and W arrays must be of same size.")
-        for L in L { precondition(dimension == L.columns) }
-        precondition(L.count == G.count)
-        precondition(G.count == W.count)
+        for L in L { precondition(dimension == L.columns, "Dimension needs to match with the coupling operators") }
+        precondition(L.count == G.count, "The number of coupling operators must match the number of BCF terms.")
+        precondition(G.count == W.count, "The number of coupling operators must match the number of BCF terms.")
         for i in G.indices {
-            precondition(G[i].count == W[i].count)
-            precondition(G[i].count == L.count)
+            precondition(G[i].count == W[i].count, "The sizes of G and W for each term must match.")
+            precondition(G[i].count == L.count, "The number of coupling operators must match the number of BCF terms.")
             for j in G[i].indices {
-                precondition(G[i][j].count == W[i][j].count)
+                precondition(G[i][j].count == W[i][j].count, "The sizes of G and W for each term must match.")
             }
         }
         
