@@ -26,7 +26,17 @@ public extension HOPSHierarchy {
     /// - Returns: A tuple containing the time points and the corresponding **unnormalized** system state vectors
     @inlinable
     @inline(__always)
-    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, whiteNoise: WhiteNoise, diffusionOperator: Matrix<Complex<Double>>, shiftType: ShiftType = .none, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
+    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0,
+                                           end: Double,
+                                           initialState: Vector<Complex<Double>>,
+                                           H: Matrix<Complex<Double>>,
+                                           z: Noise,
+                                           whiteNoise: WhiteNoise,
+                                           diffusionOperator: Matrix<Complex<Double>>,
+                                           shiftType: ShiftType = .none,
+                                           customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
+                                           stepSize: Double = 0.01,
+                                           includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         solveNonLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, whiteNoise: whiteNoise, diffusionOperator: diffusionOperator, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
@@ -43,7 +53,17 @@ public extension HOPSHierarchy {
     ///   - stepSize: Simulation step size. Default value is 0.01
     /// - Returns: A tuple containing the time points and the corresponding **unnormalized** system state vectors
     @inlinable
-    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, whiteNoise: WhiteNoise, diffusionOperator: Matrix<Complex<Double>>, shiftType: ShiftType = .none, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
+    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0,
+                                           end: Double,
+                                           initialState: Vector<Complex<Double>>,
+                                           H: (Double) -> Matrix<Complex<Double>>,
+                                           z: Noise,
+                                           whiteNoise: WhiteNoise,
+                                           diffusionOperator: Matrix<Complex<Double>>,
+                                           shiftType: ShiftType = .none,
+                                           customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
+                                           stepSize: Double = 0.01,
+                                           includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         let dimension = initialState.count
         var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
         for i in 0..<dimension {
@@ -174,7 +194,17 @@ public extension HOPSHierarchy {
     /// - Returns: A tuple containing the time points and the corresponding **unnormalized** system state vectors
     @inlinable
     @inline(__always)
-    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, whiteNoises: [WhiteNoise], diffusionOperators: [Matrix<Complex<Double>>], shiftType: ShiftType = .none, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
+    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0,
+                                           end: Double,
+                                           initialState: Vector<Complex<Double>>,
+                                           H: Matrix<Complex<Double>>,
+                                           z: Noise,
+                                           whiteNoises: [WhiteNoise],
+                                           diffusionOperators: [Matrix<Complex<Double>>],
+                                           shiftType: ShiftType = .none,
+                                           customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
+                                           stepSize: Double = 0.01,
+                                           includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         solveNonLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, whiteNoises: whiteNoises, diffusionOperators: diffusionOperators.map { O in { (_: Double, _: Vector<Complex<Double>>) in O } }, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
@@ -192,7 +222,17 @@ public extension HOPSHierarchy {
     /// - Returns: A tuple containing the time points and the corresponding **unnormalized** system state vectors
     @inlinable
     @inline(__always)
-    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, whiteNoises: [WhiteNoise], diffusionOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>], shiftType: ShiftType = .none, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
+    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0,
+                                           end: Double,
+                                           initialState: Vector<Complex<Double>>,
+                                           H: Matrix<Complex<Double>>,
+                                           z: Noise,
+                                           whiteNoises: [WhiteNoise],
+                                           diffusionOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>],
+                                           shiftType: ShiftType = .none,
+                                           customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
+                                           stepSize: Double = 0.01,
+                                           includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         solveNonLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, whiteNoises: whiteNoises, diffusionOperators: diffusionOperators, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
@@ -209,7 +249,17 @@ public extension HOPSHierarchy {
     ///   - stepSize: Simulation step size. Default value is 0.01
     /// - Returns: A tuple containing the time points and the corresponding **unnormalized** system state vectors
     @inlinable
-    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: (Double) -> Matrix<Complex<Double>>, z: Noise, whiteNoises: [WhiteNoise], diffusionOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>], shiftType: ShiftType = .none, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
+    func solveNonLinear<Noise, WhiteNoise>(start: Double = 0.0,
+                                           end: Double,
+                                           initialState: Vector<Complex<Double>>,
+                                           H: (Double) -> Matrix<Complex<Double>>,
+                                           z: Noise,
+                                           whiteNoises: [WhiteNoise],
+                                           diffusionOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>],
+                                           shiftType: ShiftType = .none,
+                                           customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
+                                           stepSize: Double = 0.01,
+                                           includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         let dimension = initialState.count
         var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
         for i in 0..<dimension {

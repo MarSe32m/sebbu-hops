@@ -28,18 +28,20 @@ public extension HOPSHierarchy {
     /// - Returns: A tuple (tauSpace, braTrajectory, ketTrajectory, correlationFunction) where tauSpace is [0,max(t,s)], braTrajectory contains the braState evolution, ketTrajectory contains the ket state evolution and correlationFunction contains the two-time correlator <A(t)B(s)> at (t, s).
     @inlinable
     @inline(__always)
-    func solveNonLinearTwoTimeCorrelationFunction<Noise>(start: Double = 0.0,
+    func solveNonLinearTwoTimeCorrelationFunction<Noise, WhiteNoise>(start: Double = 0.0,
                                                 t: Double, A: Matrix<Complex<Double>>,
                                                 s: Double, B: Matrix<Complex<Double>>,
                                                 initialState: Vector<Complex<Double>>,
                                                 H: Matrix<Complex<Double>>,
                                                 z: Noise,
+                                                whiteNoise: WhiteNoise,
+                                                diffusionOperator: Matrix<Complex<Double>>,
                                                 shiftType: ShiftType = .none,
                                                 braCustomOperators: [(_ t: Double, _ bra: Vector<Complex<Double>>, _ ket: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
                                                 ketCustomOperators: [(_ t: Double, _ bra: Vector<Complex<Double>>, _ ket: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
                                                 stepSize: Double = 0.01,
-                                                includeHierarchy: Bool = false) -> (tauSpace: [Double], braTrajectory: [Vector<Complex<Double>>], ketTrajectory: [Vector<Complex<Double>>], correlationFunction: Complex<Double>, normalizationFactor: [Double]) where Noise: ComplexNoiseProcess {
-        solveNonLinearTwoTimeCorrelationFunction(start: start, t: t, A: A, s: s, B: B, initialState: initialState, H: { _ in H }, z: z, shiftType: shiftType, braCustomOperators: braCustomOperators, ketCustomOperators: ketCustomOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+                                                includeHierarchy: Bool = false) -> (tauSpace: [Double], braTrajectory: [Vector<Complex<Double>>], ketTrajectory: [Vector<Complex<Double>>], correlationFunction: Complex<Double>, normalizationFactor: [Double]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
+        solveNonLinearTwoTimeCorrelationFunction(start: start, t: t, A: A, s: s, B: B, initialState: initialState, H: { _ in H }, z: z, whiteNoise: whiteNoise, diffusionOperator: diffusionOperator, shiftType: shiftType, braCustomOperators: braCustomOperators, ketCustomOperators: ketCustomOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Calculate two-time correlator <A(t)B(s)> for a noise realization.
@@ -57,23 +59,27 @@ public extension HOPSHierarchy {
     ///   - includeHierarchy: Whether to include the whole hierarchy in the resturned states. Default is false.
     /// - Returns: A tuple (tauSpace, braTrajectory, ketTrajectory, correlationFunction) where tauSpace is [0,max(t,s)], braTrajectory contains the braState evolution, ketTrajectory contains the ket state evolution and correlationFunction contains the two-time correlator <A(t)B(s)> at (t, s).
     @inlinable
-    func solveNonLinearTwoTimeCorrelationFunction<Noise>(start: Double = 0.0,
+    func solveNonLinearTwoTimeCorrelationFunction<Noise, WhiteNoise>(start: Double = 0.0,
                                                 t: Double, A: Matrix<Complex<Double>>,
                                                 s: Double, B: Matrix<Complex<Double>>,
                                                 initialState: Vector<Complex<Double>>,
                                                 H: (Double) -> Matrix<Complex<Double>>,
                                                 z: Noise,
+                                                whiteNoise: WhiteNoise,
+                                                diffusionOperator: Matrix<Complex<Double>>,
                                                 shiftType: ShiftType,
                                                 braCustomOperators: [(_ t: Double, _ bra: Vector<Complex<Double>>, _ ket: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
                                                 ketCustomOperators: [(_ t: Double, _ bra: Vector<Complex<Double>>, _ ket: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
                                                 stepSize: Double = 0.01,
-                                                         includeHierarchy: Bool = false) -> (tauSpace: [Double], braTrajectory: [Vector<Complex<Double>>], ketTrajectory: [Vector<Complex<Double>>], correlationFunction: Complex<Double>, normalizationFactor: [Double]) where Noise: ComplexNoiseProcess {
+                                                includeHierarchy: Bool = false) -> (tauSpace: [Double], braTrajectory: [Vector<Complex<Double>>], ketTrajectory: [Vector<Complex<Double>>], correlationFunction: Complex<Double>, normalizationFactor: [Double]) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         if t == s {
             let (tauSpace, trajectory) = solveNonLinear(start: start,
                                                         end: t,
                                                         initialState: initialState,
                                                         H: H,
                                                         z: z,
+                                                        whiteNoise: whiteNoise,
+                                                        diffusionOperator: diffusionOperator,
                                                         customOperators: braCustomOperators.map { op in
                 { (_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>> in op(t, state, state) } },
                                                         stepSize: stepSize,
@@ -89,7 +95,7 @@ public extension HOPSHierarchy {
         let end = max(t, s)
         
         return withoutActuallyEscaping(H) { H in
-            var propagator = nonLinearDyadicPropagator(start: start, normalizeByBra: t > s, initialSystemState: initialState, H: H, z: z, shiftType: shiftType, braCustomOperators: braCustomOperators, ketCustomOperators: ketCustomOperators, stepSize: stepSize)
+            var propagator = nonLinearDyadicPropagator(start: start, normalizeByBra: t > s, initialSystemState: initialState, H: H, z: z, whiteNoise: whiteNoise, diffusionOperator: diffusionOperator, shiftType: shiftType, braCustomOperators: braCustomOperators, ketCustomOperators: ketCustomOperators, stepSize: stepSize)
             let resultDimension = includeHierarchy ? self.B.columns : dimension
             var tauSpace: [Double] = []
             tauSpace.reserveCapacity(Int((end - start) / stepSize) + 2)
@@ -162,36 +168,40 @@ public extension HOPSHierarchy {
     }
     
     @inlinable
-    func nonLinearDyadicPropagator<Noise>(start: Double,
+    func nonLinearDyadicPropagator<Noise, WhiteNoise>(start: Double,
                                           normalizeByBra: Bool,
                                           initialSystemState: Vector<Complex<Double>>,
                                           H: @escaping (Double) -> Matrix<Complex<Double>>,
                                           z: Noise,
+                                          whiteNoise: WhiteNoise,
+                                          diffusionOperator: Matrix<Complex<Double>>,
                                           shiftType: ShiftType,
                                           braCustomOperators: [(_ t: Double, _ bra: Vector<Complex<Double>>, _ ket: Vector<Complex<Double>>) -> Matrix<Complex<Double>>],
                                           ketCustomOperators: [(_ t: Double, _ bra: Vector<Complex<Double>>, _ ket: Vector<Complex<Double>>) -> Matrix<Complex<Double>>],
-                                          stepSize: Double) -> HOPSPropagator where Noise: ComplexNoiseProcess {
+                                          stepSize: Double) -> HOPSPropagator where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         precondition(initialSystemState.count == dimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial state")
         var initialStateVector: Vector<Complex<Double>> = .zero(B.columns)
         for i in 0..<initialSystemState.count {
             initialStateVector[i] = initialSystemState[i]
         }
         let initialStateVectorForShift: Vector<Complex<Double>> = .zero(G.count)
-        return nonLinearDyadicPropagator(start: start, normalizeByBra: normalizeByBra, initialBraHierarchyState: initialStateVector, initialKetHierarchyState: initialStateVector, initialShiftVector: initialStateVectorForShift, H: H, z: z, shiftType: shiftType, braCustomOperators: braCustomOperators, ketCustomOperators: ketCustomOperators, stepSize: stepSize)
+        return nonLinearDyadicPropagator(start: start, normalizeByBra: normalizeByBra, initialBraHierarchyState: initialStateVector, initialKetHierarchyState: initialStateVector, initialShiftVector: initialStateVectorForShift, H: H, z: z, whiteNoise: whiteNoise, diffusionOperator: diffusionOperator, shiftType: shiftType, braCustomOperators: braCustomOperators, ketCustomOperators: ketCustomOperators, stepSize: stepSize)
     }
     
     @inlinable
-    func nonLinearDyadicPropagator<Noise>(start: Double,
-                                          normalizeByBra: Bool,
-                                          initialBraHierarchyState: Vector<Complex<Double>>,
-                                          initialKetHierarchyState: Vector<Complex<Double>>,
-                                          initialShiftVector: Vector<Complex<Double>>,
-                                          H: @escaping (Double) -> Matrix<Complex<Double>>,
-                                          z: Noise,
-                                          shiftType: ShiftType,
-                                          braCustomOperators: [(_ t: Double, _ bra: Vector<Complex<Double>>, _ ket: Vector<Complex<Double>>) -> Matrix<Complex<Double>>],
-                                          ketCustomOperators: [(_ t: Double, _ bra: Vector<Complex<Double>>, _ ket: Vector<Complex<Double>>) -> Matrix<Complex<Double>>],
-                                          stepSize: Double) -> HOPSPropagator where Noise: ComplexNoiseProcess {
+    func nonLinearDyadicPropagator<Noise, WhiteNoise>(start: Double,
+                                                      normalizeByBra: Bool,
+                                                      initialBraHierarchyState: Vector<Complex<Double>>,
+                                                      initialKetHierarchyState: Vector<Complex<Double>>,
+                                                      initialShiftVector: Vector<Complex<Double>>,
+                                                      H: @escaping (Double) -> Matrix<Complex<Double>>,
+                                                      z: Noise,
+                                                      whiteNoise: WhiteNoise,
+                                                      diffusionOperator: Matrix<Complex<Double>>,
+                                                      shiftType: ShiftType,
+                                                      braCustomOperators: [(_ t: Double, _ bra: Vector<Complex<Double>>, _ ket: Vector<Complex<Double>>) -> Matrix<Complex<Double>>],
+                                                      ketCustomOperators: [(_ t: Double, _ bra: Vector<Complex<Double>>, _ ket: Vector<Complex<Double>>) -> Matrix<Complex<Double>>],
+                                                      stepSize: Double) -> HOPSPropagator where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
         let GConjugateVector: Vector<Complex<Double>> = .init(G.map { $0.conjugate })
         let WConjugateVector: Vector<Complex<Double>> = .init(W.map { -$0.conjugate })
         let LDagger = L.conjugateTranspose
@@ -200,7 +210,7 @@ public extension HOPSHierarchy {
         var ketState: Vector<Complex<Double>> = .zero(dimension)
         var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialBraHierarchyState.count), .zero(initialKetHierarchyState.count), .zero(initialShiftVector.count)], count: 4)
         var Heff = H(start)
-        let solver = RK45FixedStep<[Vector<Complex<Double>>]>(initialState: [initialBraHierarchyState, initialKetHierarchyState, initialShiftVector], t0: start, dt: stepSize) { t, currentStates in
+        let solver = SRK2FixedStep<[Vector<Complex<Double>>], Complex<Double>>(initialState: [initialBraHierarchyState, initialKetHierarchyState, initialShiftVector], t0: start, dt: stepSize) { t, currentStates in
             for i in 0..<dimension {
                 braState[i] = currentStates[0][i]
                 ketState[i] = currentStates[1][i]
@@ -294,6 +304,43 @@ public extension HOPSHierarchy {
                 N.dot(currentStates[1], multiplied: -LExpectation, addingInto: &result[1])
             }
             return result
+        } g: { t, currentStates in
+            var result = resultCache.removeFirst()
+            defer { resultCache.append(result) }
+            // Bra propagation
+            result[0].components.withUnsafeMutableBufferPointer { resultBuffer in
+                currentStates[0].components.withUnsafeBufferPointer { currentStateBuffer in
+                    var resultPointer = resultBuffer.baseAddress!
+                    var currentStatePointer = currentStateBuffer.baseAddress!
+                    var index = 0
+                    while index < resultBuffer.count {
+                        diffusionOperator.dot(currentStatePointer, into: resultPointer)
+                        resultPointer += dimension
+                        currentStatePointer += dimension
+                        index &+= dimension
+                    }
+                    
+                }
+            }
+            // Ket propagation
+            result[1].components.withUnsafeMutableBufferPointer { resultBuffer in
+                currentStates[1].components.withUnsafeBufferPointer { currentStateBuffer in
+                    var resultPointer = resultBuffer.baseAddress!
+                    var currentStatePointer = currentStateBuffer.baseAddress!
+                    var index = 0
+                    while index < resultBuffer.count {
+                        diffusionOperator.dot(currentStatePointer, into: resultPointer)
+                        resultPointer += dimension
+                        currentStatePointer += dimension
+                        index &+= dimension
+                    }
+                    
+                }
+            }
+            result[2].zeroComponents()
+            return result
+        } w: { t in
+            whiteNoise(t)
         }
         return HOPSPropagator(solver)
     }

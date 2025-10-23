@@ -136,7 +136,8 @@ func testSingleParticleLinearHOPSTwoTimeCorrelationFunction(trajectories: Int) {
 func testSingleParticleNonLinearHOPSTwoTimeCorrelationFunction(trajectories: Int) {
     let A = 0.027
     let omegaC = 1.447
-    let endTime = 50.0
+    let endTime = 750.0
+    let gammaR = 0.0175
     
     let (G, W) = {
         let T: Double = .zero
@@ -155,13 +156,27 @@ func testSingleParticleNonLinearHOPSTwoTimeCorrelationFunction(trajectories: Int
     }
     let noises = zGenerator.generateParallel(count: trajectories)
     
+    let whiteNoiseGenerator = PreSampledGaussianWhiteNoiseProcessGenerator(mean: 0, deviation: gammaR / 2, start: 0.0, end: endTime, step: 0.01)
+    let whiteNoises = whiteNoiseGenerator.generateParallel(count: trajectories)
+    
+    let sigmaMinus: Matrix<Complex<Double>> = .init(elements: [.zero, .one, .zero, .zero], rows: 2, columns: 2)
+    let sigmaPlus = sigmaMinus.conjugateTranspose
+    let spsm = -gammaR / 2 * sigmaMinus.conjugateTranspose.dot(sigmaMinus)
+    
     let O: Matrix<Complex<Double>> = .init(elements: [.one, .zero, .zero, -.one], rows: 2, columns: 2)
     let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
     
     var tSpace: [Double] = []
     var expectationValue: [Complex<Double>] = []
-    noises.parallelMap { z in
-        let (_tSpace, trajectory) = hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, stepSize: 0.1)
+    zip(noises, whiteNoises).parallelMap { [H] (z, w) in
+        var _O: Matrix<Complex<Double>> = .zeros(rows: 2, columns: 2)
+        let customOperator: (Double, Vector<Complex<Double>>) -> Matrix<Complex<Double>> = { t, state in
+            let sigmaPlusExp = state.inner(state, metric: sigmaPlus) / state.normSquared
+            _O.copyElements(from: spsm)
+            _O.add(sigmaMinus, multiplied: gammaR * sigmaPlusExp)
+            return _O
+        }
+        let (_tSpace, trajectory) = hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, whiteNoise: w, diffusionOperator: sigmaMinus, customOperators: [customOperator], stepSize: 0.1)
         let expVal = trajectory.map { $0.inner($0, metric: O) / $0.normSquared }
         return (_tSpace, expVal)
     }.forEach { _tSpace, expVal in
@@ -183,9 +198,23 @@ func testSingleParticleNonLinearHOPSTwoTimeCorrelationFunction(trajectories: Int
     for s in sSpace {
         var tauSpace: [Double] = []
         var expO: [Complex<Double>] = []
-        noises.parallelMap { z in
-            let (_tauSpace1, bra1, ket1, _, normalization1) = hierarchy.solveNonLinearTwoTimeCorrelationFunction(t: endTime, A: O, s: s, B: O1, initialState: initialState, H: H, z: z, stepSize: 0.1)
-            let (_, bra2, ket2, _, normalization2) = hierarchy.solveNonLinearTwoTimeCorrelationFunction(t: endTime, A: O, s: s, B: O2, initialState: initialState, H: H, z: z, stepSize: 0.1)
+        zip(noises, whiteNoises).parallelMap { [H] z, w in
+            var _O1: Matrix<Complex<Double>> = .zeros(rows: 2, columns: 2)
+            let customOperatorBra: (Double, Vector<Complex<Double>>, Vector<Complex<Double>>) -> Matrix<Complex<Double>> = { t, bra, ket in
+                let sigmaPlusExp = bra.inner(bra, metric: sigmaPlus) / bra.normSquared
+                _O1.copyElements(from: spsm)
+                _O1.add(sigmaMinus, multiplied: gammaR * sigmaPlusExp)
+                return _O1
+            }
+            var _O2: Matrix<Complex<Double>> = .zeros(rows: 2, columns: 2)
+            let customOperatorKet: (Double, Vector<Complex<Double>>, Vector<Complex<Double>>) -> Matrix<Complex<Double>> = { t, bra, ket in
+                let sigmaPlusExp = bra.inner(bra, metric: sigmaPlus) / bra.normSquared
+                _O2.copyElements(from: spsm)
+                _O2.add(sigmaMinus, multiplied: gammaR * sigmaPlusExp)
+                return _O2
+            }
+            let (_tauSpace1, bra1, ket1, _, normalization1) = hierarchy.solveNonLinearTwoTimeCorrelationFunction(t: endTime, A: O, s: s, B: O1, initialState: initialState, H: H, z: z, whiteNoise: w, diffusionOperator: sigmaMinus, braCustomOperators: [customOperatorBra], ketCustomOperators: [customOperatorKet], stepSize: 0.1)
+            let (_, bra2, ket2, _, normalization2) = hierarchy.solveNonLinearTwoTimeCorrelationFunction(t: endTime, A: O, s: s, B: O2, initialState: initialState, H: H, z: z, whiteNoise: w, diffusionOperator: sigmaMinus, braCustomOperators: [customOperatorBra], ketCustomOperators: [customOperatorKet], stepSize: 0.1)
             let expO1 = zip(normalization1, zip(bra1, ket1)).map { normSquared, braKet in
                 let bra = braKet.0
                 let ket = braKet.1
