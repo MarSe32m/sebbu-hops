@@ -12,7 +12,20 @@ import DequeModule
 
 //MARK: Two-time correlation functions
 public extension HOPSHierarchy {
-    //TODO: Documentation
+    /// Calculate two-time correlatior <A(t)B(s)> for a noise realization.
+    /// - Parameters:
+    ///   - start: Start time of the evolution.
+    ///   - t: Time at which the operator A is applied.
+    ///   - A: Operator A in the two-time correlator.
+    ///   - s: Time at which the operator B is applied.
+    ///   - B: Operator B in the two-time correlator.
+    ///   - initialState: Initial system state.
+    ///   - H: Hamiltonian of the system.
+    ///   - z: Noise process of the environment.
+    ///   - customOperators: Custom operators.
+    ///   - stepSize: Step size used in the propagation. Default is 0.01.
+    ///   - includeHierarchy: Whether to include the whole hierarchy in the returned states. Default false.
+    /// - Returns: A tuple (tauSpace, braTrajectory, ketTrajectory, correlationFunction) where tauSpace is [0, max(t,s)], braTrajectory contains the bra state evolution, ketTrajectory contains the ket state evolution and correlationFunction contains the two-time correlator <A(t)B(s)> at (t, s).
     @inlinable
     @inline(__always)
     func solveLinearTwoTimeCorrelationFunction<Noise>(start: Double = 0.0,
@@ -27,7 +40,20 @@ public extension HOPSHierarchy {
         solveLinearTwoTimeCorrelationFunction(start: start, t: t, A: A, s: s, B: B, initialState: initialState, H: { _ in H }, z: z, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
-    //TODO: Documantation
+    /// Calculate two-time correlator <A(t)B(s)> for a noise realization.
+    /// - Parameters:
+    ///   - start: Start time of the evolution
+    ///   - t: Time at which the operator A is applied.
+    ///   - A: Operator A in the two-time correlator.
+    ///   - s: Time at which the operator B is applied.
+    ///   - B: Operator B in the two-time correlator.
+    ///   - initialState: Initial system state.
+    ///   - H: Hamiltonian of the system
+    ///   - z: Nosie process of the environment.
+    ///   - customOperators: Custom operators.
+    ///   - stepSize: Step size used in the propagation. Default is 0.01.
+    ///   - includeHierarchy: Whether to include the whole hierarchy in the resturned states. Default is false.
+    /// - Returns: A tuple (tauSpace, braTrajectory, ketTrajectory, correlationFunction) where tauSpace is [0,max(t,s)], braTrajectory contains the braState evolution, ketTrajectory contains the ket state evolution and correlationFunction contains the two-time correlator <A(t)B(s)> at (t, s).
     @inlinable
     func solveLinearTwoTimeCorrelationFunction<Noise>(start: Double = 0.0,
                                                 t: Double, A: Matrix<Complex<Double>>,
@@ -51,7 +77,7 @@ public extension HOPSHierarchy {
         
         return withoutActuallyEscaping(H) { H in
             var propagator = linearDyadicPropagator(start: start, initialSystemState: initialState, H: H, z: z, customOperators: customOperators, stepSize: stepSize)
-            let resultDimension = includeHierarchy ? B.columns : dimension
+            let resultDimension = includeHierarchy ? self.B.columns : dimension
             var tauSpace: [Double] = []
             tauSpace.reserveCapacity(Int((end - start) / stepSize) + 2)
             var braTrajectory: [Vector<Complex<Double>>] = .init(repeating: .zero(resultDimension), count: tauSpace.capacity)
@@ -73,7 +99,7 @@ public extension HOPSHierarchy {
                 index += 1
             }
             // Apply perturbation operator
-            let O = t > s ? B : A
+            let O = t > s ? B : A.conjugateTranspose
             let stateIndex = t > s ? 1 : 0
             var nextInitialState: [Vector<Complex<Double>>] = propagator.currentState
             propagator.currentState[stateIndex].components.withUnsafeBufferPointer { lastStateComponents in
@@ -126,16 +152,16 @@ public extension HOPSHierarchy {
         for i in 0..<initialSystemState.count {
             initialStateVector[i] = initialSystemState[i]
         }
-        return linearDyadicPropagator(start: start, initialHierarchyState: initialStateVector, H: H, z: z, customOperators: customOperators, stepSize: stepSize)
+        return linearDyadicPropagator(start: start, initialBraHierarchyState: initialStateVector, initialKetHierarchyState: initialStateVector, H: H, z: z, customOperators: customOperators, stepSize: stepSize)
     }
     
     @inlinable
-    func linearDyadicPropagator<Noise>(start: Double, initialHierarchyState: Vector<Complex<Double>>, H: @escaping (Double) -> Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>], stepSize: Double) -> HOPSPropagator where Noise: ComplexNoiseProcess {
+    func linearDyadicPropagator<Noise>(start: Double, initialBraHierarchyState: Vector<Complex<Double>>, initialKetHierarchyState: Vector<Complex<Double>>, H: @escaping (Double) -> Matrix<Complex<Double>>, z: Noise, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>], stepSize: Double) -> HOPSPropagator where Noise: ComplexNoiseProcess {
         var braState: Vector<Complex<Double>> = .zero(dimension)
         var ketState: Vector<Complex<Double>> = .zero(dimension)
-        var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialHierarchyState.count), .zero(initialHierarchyState.count)], count: 4)
+        var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialBraHierarchyState.count), .zero(initialKetHierarchyState.count)], count: 4)
         var Heff = H(start)
-        let solver = RK45FixedStep(initialState: [initialHierarchyState, initialHierarchyState], t0: start, dt: stepSize) { t, currentState in
+        let solver = RK45FixedStep(initialState: [initialBraHierarchyState, initialKetHierarchyState], t0: start, dt: stepSize) { t, currentState in
             for i in 0..<dimension {
                 braState[i] = currentState[0][i]
                 ketState[i] = currentState[1][i]

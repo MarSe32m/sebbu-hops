@@ -19,14 +19,14 @@ public extension HOPSHierarchy {
                                                 initialState: Vector<Complex<Double>>,
                                                 H: Matrix<Complex<Double>>,
                                                 z: Noise,
-                                                         shiftType: ShiftType = .none,
+                                                shiftType: ShiftType = .none,
                                                 customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
                                                 stepSize: Double = 0.01,
-                                                         includeHierarchy: Bool = false) -> (tauSpace: [Double], braTrajectory: [Vector<Complex<Double>>], ketTrajectory: [Vector<Complex<Double>>], correlationFunction: Complex<Double>, normalizationFactor: [Double]) where Noise: ComplexNoiseProcess {
+                                                includeHierarchy: Bool = false) -> (tauSpace: [Double], braTrajectory: [Vector<Complex<Double>>], ketTrajectory: [Vector<Complex<Double>>], correlationFunction: Complex<Double>, normalizationFactor: [Double]) where Noise: ComplexNoiseProcess {
         solveNonLinearTwoTimeCorrelationFunction(start: start, t: t, A: A, s: s, B: B, initialState: initialState, H: { _ in H }, z: z, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
-    //TODO: Documantation
+    //TODO: Documentation
     @inlinable
     func solveNonLinearTwoTimeCorrelationFunction<Noise>(start: Double = 0.0,
                                                 t: Double, A: Matrix<Complex<Double>>,
@@ -74,7 +74,7 @@ public extension HOPSHierarchy {
                 index += 1
             }
             // Apply perturbation operator
-            let O = t > s ? B : A
+            let O = t > s ? B : A.conjugateTranspose
             let stateIndex = t > s ? 1 : 0
             var nextInitialState: [Vector<Complex<Double>>] = propagator.currentState
             propagator.currentState[stateIndex].components.withUnsafeBufferPointer { lastStateComponents in
@@ -131,20 +131,20 @@ public extension HOPSHierarchy {
             initialStateVector[i] = initialSystemState[i]
         }
         let initialStateVectorForShift: Vector<Complex<Double>> = .zero(G.count)
-        return nonLinearDyadicPropagator(start: start, normalizeByBra: normalizeByBra, initialHierarchyState: initialStateVector, initialShiftVector: initialStateVectorForShift, H: H, z: z, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize)
+        return nonLinearDyadicPropagator(start: start, normalizeByBra: normalizeByBra, initialBraHierarchyState: initialStateVector, initialKetHierarchyState: initialStateVector, initialShiftVector: initialStateVectorForShift, H: H, z: z, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize)
     }
     
     @inlinable
-    func nonLinearDyadicPropagator<Noise>(start: Double, normalizeByBra: Bool, initialHierarchyState: Vector<Complex<Double>>, initialShiftVector: Vector<Complex<Double>>, H: @escaping (Double) -> Matrix<Complex<Double>>, z: Noise, shiftType: ShiftType, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>], stepSize: Double) -> HOPSPropagator where Noise: ComplexNoiseProcess {
+    func nonLinearDyadicPropagator<Noise>(start: Double, normalizeByBra: Bool, initialBraHierarchyState: Vector<Complex<Double>>, initialKetHierarchyState: Vector<Complex<Double>>, initialShiftVector: Vector<Complex<Double>>, H: @escaping (Double) -> Matrix<Complex<Double>>, z: Noise, shiftType: ShiftType, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>], stepSize: Double) -> HOPSPropagator where Noise: ComplexNoiseProcess {
         let GConjugateVector: Vector<Complex<Double>> = .init(G.map { $0.conjugate })
         let WConjugateVector: Vector<Complex<Double>> = .init(W.map { -$0.conjugate })
         let LDagger = L.conjugateTranspose
         
         var braState: Vector<Complex<Double>> = .zero(dimension)
         var ketState: Vector<Complex<Double>> = .zero(dimension)
-        var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialHierarchyState.count), .zero(initialHierarchyState.count), .zero(initialShiftVector.count)], count: 4)
+        var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialBraHierarchyState.count), .zero(initialKetHierarchyState.count), .zero(initialShiftVector.count)], count: 4)
         var Heff = H(start)
-        let solver = RK45FixedStep<[Vector<Complex<Double>>]>(initialState: [initialHierarchyState, initialHierarchyState, initialShiftVector], t0: start, dt: stepSize) { t, currentStates in
+        let solver = RK45FixedStep<[Vector<Complex<Double>>]>(initialState: [initialBraHierarchyState, initialKetHierarchyState, initialShiftVector], t0: start, dt: stepSize) { t, currentStates in
             for i in 0..<dimension {
                 braState[i] = currentStates[0][i]
                 ketState[i] = currentStates[1][i]

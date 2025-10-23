@@ -1,5 +1,5 @@
 //
-//  HOPSPropagators.swift
+//  HOPSPropagator.swift
 //  sebbu-hops
 //
 //  Created by Sebastian Toivonen on 20.10.2025.
