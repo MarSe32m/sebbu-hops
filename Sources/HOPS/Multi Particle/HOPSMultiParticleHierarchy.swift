@@ -60,6 +60,42 @@ public struct HOPSMultiParticleHierarchy: Sendable {
     /// The system dimension
     public let dimension: Int
     
+    /// Constructs a new HOPSHierarchy for subsequent trajectory calculations with independent noise processes
+    /// - Parameters:
+    ///   - dimension: Dimension of the system Hilbert space
+    ///   - L: The environment coupling operator
+    ///   - G: The G coefficients of the bath correlation function exponential series
+    ///   - W: The W exponents of the bath correlation function exponential series
+    ///   - depth: The depth of the hierarchy
+    @inlinable
+    public init(dimension: Int, L: [Matrix<Complex<Double>>], G: [[Complex<Double>]], W: [[Complex<Double>]], depth: Int) {
+        self.init(dimension: dimension, L: L, G: G, W: W) { kTuple in
+            kTuple.reduce(0, +) <= depth
+        }
+    }
+    
+    @inlinable
+    public init(dimension: Int, L: [Matrix<Complex<Double>>], G: [[Complex<Double>]], W: [[Complex<Double>]], truncationCondition: ([Int]) -> Bool) {
+        let bcfDimension = G.count
+        var _G: [[[Complex<Double>]]] = []
+        var _W: [[[Complex<Double>]]] = []
+        for i in 0..<bcfDimension {
+            _G.append([])
+            _W.append([])
+            for j in 0..<bcfDimension {
+                if i == j {
+                    _G[i].append(G[j])
+                    _W[i].append(W[j])
+                } else {
+                    _G[i].append([])
+                    _W[i].append([])
+                }
+            }
+        }
+        self.init(dimension: dimension, L: L, G: _G, W: _W, truncationCondition: truncationCondition)
+    }
+    
+    
     /// Constructs a new HOPSHierarchy for subsequent trajectory calculations
     /// - Parameters:
     ///   - dimension: Dimension of the system Hilbert space

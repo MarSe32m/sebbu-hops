@@ -77,7 +77,7 @@ public extension HOPSHierarchy {
         var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialStateVector.count), .zero(G.count)], count: 4)
         return withoutActuallyEscaping(H) { H in
             var Heff = H(start)
-            var solver = SRK2FixedStep<[Vector<Complex<Double>>], Complex<Double>>(initialState: [initialStateVector, initialStateVectorForShift], t0: start, dt: stepSize) { t, currentStates in
+            var solver = SRK2Solver<[Vector<Complex<Double>>], Complex<Double>>(initialState: [initialStateVector, initialStateVectorForShift], t0: start, dt: stepSize) { t, currentStates in
                 let currentState = currentStates[0]
                 for i in 0..<dimension {
                     systemState[i] = currentState[i]
@@ -304,7 +304,7 @@ public extension HOPSHierarchy {
         
         return withoutActuallyEscaping(H) { H in
             var Heff = H(start)
-            var solver = SRK2FixedStepMultiNoise(initialState: [initialStateVector, initialStateVectorForShift], t0: start, dt: stepSize, f: { t, currentStates in
+            var solver = SRK2MultiNoiseSolver(initialState: [initialStateVector, initialStateVectorForShift], t0: start, dt: stepSize, f: { t, currentStates in
                 let currentState = currentStates[0]
                 for i in 0..<dimension {
                     systemState[i] = currentState[i]

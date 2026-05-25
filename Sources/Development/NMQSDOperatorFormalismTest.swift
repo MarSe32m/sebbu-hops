@@ -1,16 +1,16 @@
 //
-//  IBM.swift
+//  NMQSDOperatorFormalismTest.swift
 //  sebbu-hops
 //
-//  Created by Sebastian Toivonen on 16.5.2025.
+//  Created by Sebastian Toivonen on 3.5.2026.
 //
 
 import HOPS
 import SebbuScience
 import PythonKitUtilities
 
-public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
-    let A = 0.8
+public func OperatorNMQSDvsHOPS(realizations: Int, endTime: Double = 7.0) {
+    let A = 0.87
     let omegaC = 1.447
     
     let renormalizationEnergy = Quad.integrate(a: 0, b: .infinity) { omega in
@@ -24,17 +24,17 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
         let (G, W) = MatrixPencil.fit(y: bcf, dt: tSpace[1] - tSpace[0], terms: 3)
         return (G, W)
     }()
-    print(G)
     
     let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
-    let hierarchy = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 4)
-    let hierarchyForShift = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 4)
+    let hierarchy = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 5)
+    let hierarchyForShifted = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 4)
     let nmqsdCalculation = NMQSDCalculation(dimension: 2, L: L, G: G, W: W)
     
-    let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, Complex(renormalizationEnergy)], rows: 2, columns: 2)
-    let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
-        spectralDensity(omega: omega, A: A, omegaC: omegaC)
-    }
+    let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
+//    let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
+//        spectralDensity(omega: omega, A: A, omegaC: omegaC)
+//    }
+    let zGenerator = ZeroNoiseProcessGenerator()
 
     let noiseGenerationStart = ContinuousClock().now
     let noises = zGenerator.generateParallel(count: realizations)
@@ -50,17 +50,8 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
     print("Linear HOPS time:      \(linearEnd - linearStart)")
     
     linearStart = .now
-    let linearNMQSDTrajectories = noises.parallelMap { z in 
-        var _L: Matrix<Complex<Double>> = .zeros(rows: L.rows, columns: L.columns)
-        return nmqsdCalculation.solveLinear(end: endTime, initialState: initialState, H: H, z: z) { t, z in 
-            var bcfIntegral: Complex<Double> = .zero
-            for i in G.indices {
-                bcfIntegral += G[i] / W[i] * (.one - .exp(-t * W[i]))
-            }
-            _L.copyElements(from: L)
-            _L.multiply(by: bcfIntegral)
-            return _L
-        }
+    let linearNMQSDTrajectories = noises.parallelMap { z in
+        nmqsdCalculation.solveLinear2(end: endTime, initialState: initialState, H: H, z: z, includePropagator: true, stepSize: 0.01)
     }
     linearEnd = .now
     print("Linear NMQSD time:     \(linearEnd - linearStart)")
@@ -71,22 +62,14 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
     }
     var nonLinearEnd = ContinuousClock().now
     print("Non-linear HOPS time:  \(nonLinearEnd - nonLinearStart)")
+    
     let nonLinearShiftedTrajectories = noises.parallelMap { z in
-        hierarchyForShift.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, shiftType: .meanField, stepSize: 0.01)
+        hierarchyForShifted.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, shiftType: .meanField, stepSize: 0.01)
     }
     
     nonLinearStart = .now
-    let nonLinearNMQSDTrajectories = noises.parallelMap { z in 
-        var _L: Matrix<Complex<Double>> = .zeros(rows: L.rows, columns: L.columns)
-        return nmqsdCalculation.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z) { t, z in 
-            var bcfIntegral: Complex<Double> = .zero
-            for i in G.indices {
-                bcfIntegral += G[i] / W[i] * (.one - .exp(-t * W[i]))
-            }
-            _L.copyElements(from: L)
-            _L.multiply(by: bcfIntegral)
-            return _L
-        }
+    let nonLinearNMQSDTrajectories = noises.parallelMap { z in
+        nmqsdCalculation.solveNonLinear2(end: endTime, initialState: initialState, H: H, z: z, stepSize: 0.01)
     }
     nonLinearEnd = .now
     print("Non-linear NMQSD time: \(nonLinearEnd - nonLinearStart)")
@@ -106,7 +89,7 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
 
     let linearNMQSDTSpace = linearNMQSDTrajectories[0].tSpace
     var linearNMQSDRho: [Matrix<Complex<Double>>] = []
-    for (_, trajectory) in linearNMQSDTrajectories {
+    for (_, trajectory, _) in linearNMQSDTrajectories {
         let _rho = nmqsdCalculation.mapTrajectoryToDensityMatrix(trajectory)
         if linearNMQSDRho.isEmpty {
             linearNMQSDRho = _rho.map { $0 / Double(realizations) }
@@ -116,6 +99,44 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
             }
         }
     }
+    if !linearNMQSDTrajectories[0].propagator.isEmpty {
+        let propagator = linearNMQSDTrajectories[0].propagator
+        let X: Matrix<Complex<Double>> = .init(elements: [.zero, .one, .one, .zero], rows: 2, columns: 2)
+        let Y: Matrix<Complex<Double>> = .init(elements: [.zero, -.i, .i, .zero], rows: 2, columns: 2)
+        let Z: Matrix<Complex<Double>> = .init(elements: [.one, .zero, .zero, -.one], rows: 2, columns: 2)
+        let lambda = propagator.map { 0.5 * $0.trace }
+        let lambdaX = propagator.map { 0.5 * $0.dot(X).trace }
+        let lambdaY = propagator.map { 0.5 * $0.dot(Y).trace }
+        let lambdaZ = propagator.map { 0.5 * $0.dot(Z).trace }
+        let z: [Complex<Double>] = linearNMQSDTSpace.map { noises[0].sample($0) }
+        plt.figure()
+        plt.plot(x: linearNMQSDTSpace, y: lambdaX.real, label: "Re X")
+        plt.plot(x: linearNMQSDTSpace, y: lambdaX.imaginary, label: "Im X")
+        plt.plot(x: linearNMQSDTSpace, y: lambdaY.real, label: "Re Y", linestyle: "--")
+        plt.plot(x: linearNMQSDTSpace, y: lambdaY.imaginary, label: "Im Y", linestyle: "--")
+        plt.plot(x: linearNMQSDTSpace, y: z.real, label: "Re z")
+        plt.plot(x: linearNMQSDTSpace, y: z.imaginary, label: "Im z")
+        plt.legend()
+        plt.show()
+        plt.close()
+        
+        plt.figure()
+        
+//        plt.plot(x: linearNMQSDTSpace, y: lambda.real, label: "Re 1")
+//        plt.plot(x: linearNMQSDTSpace, y: lambda.imaginary, label: "Im 1")
+//        plt.plot(x: linearNMQSDTSpace, y: lambdaZ.real, label: "Re Z", linestyle: "--")
+//        plt.plot(x: linearNMQSDTSpace, y: lambdaZ.imaginary, label: "Im Z", linestyle: "--")
+        //plt.plot(x: linearNMQSDTSpace, y: zip(lambda, lambdaZ).map { $0 + $1 }.real, label: "Re (l + z)")
+        plt.plot(x: linearNMQSDTSpace, y: zip(lambda, lambdaZ).map { $0 - $1 }.imaginary, label: "Im (l + z)")
+        plt.plot(x: linearNMQSDTSpace, y: zip(lambda, lambdaZ).map { $0 + $1 }.real, label: "Re (l - z)", linestyle: "-.")
+        plt.plot(x: linearNMQSDTSpace, y: zip(lambda, lambdaZ).map { $0 - $1 }.imaginary, label: "Im (l - z)", linestyle: "--")
+//        plt.plot(x: linearNMQSDTSpace, y: z.real, label: "Re z")
+//        plt.plot(x: linearNMQSDTSpace, y: z.imaginary, label: "Im z")
+        plt.legend()
+        plt.show()
+        plt.close()
+    }
+    
     
     let nonLinearTSpace = nonLinearTrajectories[0].tSpace
     var nonLinearRho: [Matrix<Complex<Double>>] = []
@@ -145,7 +166,7 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
     
     let nonLinearNMQSDTSpace = nonLinearNMQSDTrajectories[0].tSpace
     var nonLinearNMQSDRho: [Matrix<Complex<Double>>] = []
-    for (_, trajectory) in nonLinearNMQSDTrajectories {
+    for (_, trajectory, _) in nonLinearNMQSDTrajectories {
         let _rho = nmqsdCalculation.mapTrajectoryToDensityMatrix(trajectory, normalize: true)
         if nonLinearNMQSDRho.isEmpty {
             nonLinearNMQSDRho = _rho.map { $0 / Double(realizations) }
@@ -176,9 +197,6 @@ public func HOPSvsNMQSD(realizations: Int, endTime: Double = 7.0) {
     let nonLinearNMQSDX = nonLinearNMQSDRho.map { 2 * $0[0, 1].real }
     let nonLinearNMQSDY = nonLinearNMQSDRho.map { 2 * $0[0, 1].imaginary }
     
-    print(linearNMQSDTSpace.count, linearNMQSDX.count)
-    print(linearNMQSDTSpace.count, linearNMQSDY.count)
-    print(linearNMQSDTSpace.count, linearNMQSDZ.count)
     // Compare linear trajectories
     plt.figure()
     plt.plot(x: linearNMQSDTSpace, y: linearNMQSDX, label: "NMQSD X")

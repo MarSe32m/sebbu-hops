@@ -11,7 +11,7 @@ import PythonKitUtilities
 
 private func masterEquationSolution(endTime: Double, initialRho: Matrix<Complex<Double>>, H: Matrix<Complex<Double>>, channels: [(gamma: Double, L: Matrix<Complex<Double>>)]) -> (tSpace: [Double], rho: [Matrix<Complex<Double>>]) {
     let channels = channels.map { gamma, L in (gamma, L, L.conjugateTranspose, L.conjugateTranspose.dot(L))}
-    var solver = RK45FixedStep(initialState: initialRho, t0: 0.0, dt: 0.01) { t, rho in
+    var solver = RK4Solver(initialState: initialRho, t0: 0.0, dt: 0.01) { t, rho in
         var result = -.i * (H.dot(rho) - rho.dot(H))
         for (rate, L, LDagger, LDaggerL) in channels {
             result += rate * L.dot(rho.dot(LDagger))

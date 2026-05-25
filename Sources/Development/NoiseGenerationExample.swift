@@ -99,3 +99,23 @@ func multiNoiseGenerationExample() {
     }
     plotGaussianMultiNoiseVsBCF(count: 5000, generator: generator, tSpace: tSpace, bcfs: bcfClosures)
 }
+
+func ornsteinUhlenbeckExample() {
+    let G = 0.27
+    let W = Complex(1, 5)
+    let tSpace = [Double].linearSpace(0, 20, 1000)
+    let bcf = tSpace.map { G * .exp(-$0 * W) }
+    let bcfSpline = CubicHermiteSpline(x: tSpace, y: bcf)
+    let sampleSpace = [Double].linearSpace(0, 20, 10000)
+    let generator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G, W: W, t: sampleSpace)
+    plotGaussianNoiseVsBCF(count: 10000, generator: generator, tSpace: tSpace) { t in
+        bcfSpline.sample(t)
+    }
+    
+    let generator2 = GaussianFFTNoiseProcessGenerator(tMax: 20) { omega in
+        G / .pi * (1.0 / (W - Complex(imaginary: omega))).real
+    }
+    plotGaussianNoiseVsBCF(count: 10000, generator: generator2, tSpace: tSpace) { t in
+        bcfSpline.sample(t)
+    }
+}

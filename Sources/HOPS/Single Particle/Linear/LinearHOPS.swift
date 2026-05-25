@@ -52,17 +52,18 @@ public extension HOPSHierarchy {
     ///   - stepSize: Simulation step size. Default value is 0.01
     /// - Returns: A tuple containing the time points and the corresponding system state vectors
     @inlinable
-    func solveLinear<Noise>(start: Double = 0.0,
-                            end: Double,
-                            initialState: Vector<Complex<Double>>,
-                            H: (Double) -> Matrix<Complex<Double>>,
-                            z: Noise,
-                            customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
-                            stepSize: Double = 0.01,
-                            includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
+    func solveLinear<Noise>(
+        start: Double = 0.0,
+        end: Double,
+        initialState: Vector<Complex<Double>>,
+        H: (Double) -> Matrix<Complex<Double>>,
+        z: Noise,
+        customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [],
+        stepSize: Double = 0.01,
+        includeHierarchy: Bool = false
+    ) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
         return withoutActuallyEscaping(H) { H in
             var propagator = linearPropagator(start: start, initialSystemState: initialState, H: H, z: z, customOperators: customOperators, stepSize: stepSize)
-                
             let resultDimension = includeHierarchy ? self.B.columns : dimension
             var tSpace: [Double] = []
             tSpace.reserveCapacity(Int((end - start) / stepSize) + 2)
@@ -109,7 +110,7 @@ public extension HOPSHierarchy {
         var systemState: Vector<Complex<Double>> = .zero(dimension)
         var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialHierarchy.count)], count: 4)
         var Heff = H(start)
-        let solver = RK45FixedStep(initialState: [initialHierarchy], t0: start, dt: stepSize) { t, currentState in
+        let solver = RK4Solver(initialState: [initialHierarchy], t0: start, dt: stepSize) { t, currentState in
             for i in 0..<dimension {
                 systemState[i] = currentState[0][i]
             }

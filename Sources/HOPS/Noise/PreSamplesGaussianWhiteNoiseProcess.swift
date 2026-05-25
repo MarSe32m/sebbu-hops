@@ -13,14 +13,48 @@ public struct PreSampledGaussianWhiteNoiseProcess: ComplexWhiteNoiseProcess, @un
     internal let interpolator: NearestNeighbourInterpolator<Complex<Double>>
     
     @inlinable
-    public init(mean: Double, deviation: Double, tSpace: [Double]) {
-        let generatingProcess = GaussianWhiteNoiseProcess(mean: mean, deviation: deviation)
-        let samples = tSpace.map { generatingProcess.sample($0) }
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: Double, deviation: Double, tSpace: [Double]) {
+        self.init(mean: { _ in mean }, deviation: { _ in deviation }, tSpace: tSpace)
+    }
+    
+    @inlinable
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: (Double) -> Double, deviation: Double, tSpace: [Double]) {
+        self.init(mean: mean, deviation: { _ in deviation }, tSpace: tSpace)
+    }
+    
+    @inlinable
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: Double, deviation: (Double) -> Double, tSpace: [Double]) {
+        self.init(mean: { _ in mean }, deviation: deviation, tSpace: tSpace)
+    }
+    
+    @inlinable
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: (Double) -> Double, deviation: (Double) -> Double, tSpace: [Double]) {
+        let samples = withoutActuallyEscaping(mean) { mean in
+            withoutActuallyEscaping(deviation) { deviation in
+                let generatingProcess = GaussianWhiteNoiseProcess(seed: seed, mean: mean, deviation: deviation)
+                return tSpace.map { generatingProcess.sample($0)}
+            }
+        }
         self.interpolator = NearestNeighbourInterpolator(x: tSpace, y: samples)
     }
     
     @inlinable
-    public init(mean: Double, deviation: Double, start: Double, end: Double, step: Double) {
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: Double, deviation: Double, start: Double, end: Double, step: Double) {
+        self.init(seed: seed, mean: { _ in mean }, deviation: { _ in deviation }, start: start, end: end, step: step)
+    }
+    
+    @inlinable
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: (Double) -> Double, deviation: Double, start: Double, end: Double, step: Double) {
+        self.init(seed: seed, mean: mean, deviation: { _ in deviation }, start: start, end: end, step: step)
+    }
+    
+    @inlinable
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: Double, deviation: (Double) -> Double, start: Double, end: Double, step: Double) {
+        self.init(seed: seed, mean: { _ in mean }, deviation: deviation, start: start, end: end, step: step)
+    }
+    
+    @inlinable
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: (Double) -> Double, deviation: (Double) -> Double, start: Double, end: Double, step: Double) {
         var tSpace: [Double] = []
         tSpace.reserveCapacity(Int((end - start) / step) + 1)
         var t = start
@@ -55,16 +89,31 @@ public struct PreSampledGaussianWhiteNoiseProcess: ComplexWhiteNoiseProcess, @un
     }
 }
 
-public struct PreSampledGaussianWhiteNoiseProcessGenerator: WhiteNoiseProcessGenerator, Sendable {
+public struct PreSampledGaussianWhiteNoiseProcessGenerator: WhiteNoiseProcessGenerator, @unchecked Sendable {
     @usableFromInline
-    internal let mean: Double
+    internal let mean: (Double) -> Double
     @usableFromInline
-    internal let deviation: Double
+    internal let deviation: (Double) -> Double
     @usableFromInline
     internal let tSpace: [Double]
     
     @inlinable
     public init(mean: Double, deviation: Double, tSpace: [Double]) {
+        self.init(mean: { _ in mean }, deviation: { _ in deviation }, tSpace: tSpace)
+    }
+    
+    @inlinable
+    public init(mean: @escaping (Double) -> Double, deviation: Double, tSpace: [Double]) {
+        self.init(mean: mean, deviation: { _ in deviation }, tSpace: tSpace)
+    }
+    
+    @inlinable
+    public init(mean: Double, deviation: @escaping (Double) -> Double, tSpace: [Double]) {
+        self.init(mean: { _ in mean }, deviation: deviation, tSpace: tSpace)
+    }
+    
+    @inlinable
+    public init(mean: @escaping (Double) -> Double, deviation: @escaping (Double) -> Double, tSpace: [Double]) {
         self.mean = mean
         self.deviation = deviation
         self.tSpace = tSpace
@@ -72,6 +121,21 @@ public struct PreSampledGaussianWhiteNoiseProcessGenerator: WhiteNoiseProcessGen
     
     @inlinable
     public init(mean: Double, deviation: Double, start: Double, end: Double, step: Double) {
+        self.init(mean: { _ in mean }, deviation: { _ in deviation }, start: start, end: end, step: step)
+    }
+    
+    @inlinable
+    public init(mean: @escaping (Double) -> Double, deviation: Double, start: Double, end: Double, step: Double) {
+        self.init(mean: mean, deviation: { _ in deviation }, start: start, end: end, step: step)
+    }
+    
+    @inlinable
+    public init(mean: Double, deviation: @escaping (Double) -> Double, start: Double, end: Double, step: Double) {
+        self.init(mean: { _ in mean }, deviation: deviation, start: start, end: end, step: step)
+    }
+    
+    @inlinable
+    public init(mean: @escaping (Double) -> Double, deviation: @escaping (Double) -> Double, start: Double, end: Double, step: Double) {
         var tSpace: [Double] = []
         tSpace.reserveCapacity(Int((end - start) / step) + 1)
         var t = start

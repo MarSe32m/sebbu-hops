@@ -67,7 +67,21 @@ func testRFSpectrum(omegaX: Double, detuning: Double, omegaC: Double, rabi: Doub
                 spectralDensity(omega: omega, a: a, ksi: ksi)
             }
         }
-        return MatrixPencil.fit(y: bcf, dt: tSpace[1] - tSpace[0], terms: 3)
+        let (G, W) = MatrixPencil.fit(y: bcf, dt: tSpace[1] - tSpace[0], terms: 3)
+//        let bcfReconstructed = tSpace.map { tau in
+//            var result: Complex<Double> = .zero
+//            for (g, w) in zip(G, W) {
+//                result += g * .exp(-w * tau)
+//            }
+//            return result
+//        }
+//        plt.figure()
+//        plt.plot(x: tSpace, y: bcfReconstructed.real, label: "Re bcf")
+//        plt.plot(x: tSpace, y: bcfReconstructed.imaginary, label: "Re bcf")
+//        plt.legend()
+//        plt.show()
+//        plt.close()
+        return (G, W)
     }()
     
     let hierarchy = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 6)
@@ -82,7 +96,7 @@ func testRFSpectrum(omegaX: Double, detuning: Double, omegaC: Double, rabi: Doub
     
     var sigmaPlusExpSS: Complex<Double> = .zero
     
-    let batchSize = 512
+    let batchSize = 128
     var trajectoriesComputed = 0
     
     while trajectoriesComputed < trajectories {
@@ -103,8 +117,8 @@ func testRFSpectrum(omegaX: Double, detuning: Double, omegaC: Double, rabi: Doub
                 _O.add(sigmaPlus, multiplied: gammaR * sigmaPlusExp)
                 return _O
             }
-            let (tauSpace1, braTrajectory1, ketTrajectory1, _, normalizationFactor1) = hierarchy.solveNonLinearTwoTimeCorrelationFunction(t: steadyStateTime, A: sigmaPlus, s: endTime, B: sigmaMinus, initialState: initialState, H: H, z: z, whiteNoise: w, diffusionOperator: sigmaMinus, braCustomOperators: [customOperator], ketCustomOperators: [customOperator], stepSize: 0.1)
-            let (tauSpace2, braTrajectory2, ketTrajectory2, _, normalizationFactor2) = hierarchy.solveNonLinearTwoTimeCorrelationFunction(t: steadyStateTime, A: sigmaPlus, s: endTime, B: sigmaMinus, initialState: initialState, H: H, z: z.antithetic(), whiteNoise: w.antithetic(), diffusionOperator: sigmaMinus, braCustomOperators: [customOperator], ketCustomOperators: [customOperator], stepSize: 0.1)
+            let (tauSpace1, braTrajectory1, ketTrajectory1, _, normalizationFactor1) = hierarchy.solveNonLinearTwoTimeCorrelationFunction(t: steadyStateTime, A: sigmaPlus, s: endTime, B: sigmaMinus, initialState: initialState, H: H, z: z, whiteNoise: w, diffusionOperator: sigmaMinus, braCustomOperators: [customOperator], ketCustomOperators: [customOperator], stepSize: 0.01)
+            let (tauSpace2, braTrajectory2, ketTrajectory2, _, normalizationFactor2) = hierarchy.solveNonLinearTwoTimeCorrelationFunction(t: steadyStateTime, A: sigmaPlus, s: endTime, B: sigmaMinus, initialState: initialState, H: H, z: z.antithetic(), whiteNoise: w.antithetic(), diffusionOperator: sigmaMinus, braCustomOperators: [customOperator], ketCustomOperators: [customOperator], stepSize: 0.01)
             
             var _tSpace1: [Double] = []
             var _rho1: [Matrix<Complex<Double>>] = []

@@ -49,7 +49,7 @@ public extension HOPSMultiParticleHierarchy {
         var resultCache: Deque<Vector<Complex<Double>>> = .init(repeating: .zero(initialStateVector.count), count: 4)
         return withoutActuallyEscaping(H) { H in
             var Heff = H(start)
-            var solver = RK45FixedStep(initialState: initialStateVector, t0: start, dt: stepSize) { t, currentState in
+            var solver = RK4Solver(initialState: initialStateVector, t0: start, dt: stepSize) { t, currentState in
                 for i in 0..<dimension {
                     systemState[i] = currentState[i]
                 }
@@ -149,7 +149,7 @@ public extension HOPSMultiParticleHierarchy {
         var resultCache: Deque<Vector<Complex<Double>>> = .init(repeating: .zero(initialStateVector.count), count: 4)
         return withoutActuallyEscaping(H) { H in
             var Heff = H(start)
-            var solver = SRK2FixedStep(initialState: initialStateVector, t0: start, dt: stepSize) { t, currentState in
+            var solver = SRK2Solver(initialState: initialStateVector, t0: start, dt: stepSize) { t, currentState in
                 for i in 0..<dimension {
                     systemState[i] = currentState[i]
                 }
@@ -315,7 +315,7 @@ public extension HOPSMultiParticleHierarchy {
         }
         return withoutActuallyEscaping(H) { H in
             var Heff = H(start)
-            var solver = SRK2FixedStepMultiNoise(initialState: initialStateVector, t0: start, dt: stepSize, f: { t, currentState in
+            var solver = SRK2MultiNoiseSolver(initialState: initialStateVector, t0: start, dt: stepSize, f: { t, currentState in
                 for i in 0..<dimension {
                     systemState[i] = currentState[i]
                 }

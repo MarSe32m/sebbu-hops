@@ -10,23 +10,44 @@ import SebbuScience
 
 public class GaussianWhiteNoiseProcess: ComplexWhiteNoiseProcess, @unchecked Sendable {
     @usableFromInline
-    internal let mean: Double
+    internal let mean: (Double) -> Double
     @usableFromInline
-    internal let deviation: Double
+    internal let deviation: (Double) -> Double
     @usableFromInline
     internal var generator: NumPyRandom
     
     @inlinable
-    public init(mean: Double, deviation: Double) {
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: Double, deviation: Double) {
+        self.mean = { _ in mean }
+        self.deviation = { _ in deviation }
+        self.generator = NumPyRandom(seed: seed)
+    }
+    
+    @inlinable
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: @escaping (Double) -> Double, deviation: Double) {
         self.mean = mean
-        self.deviation = deviation.squareRoot()
-        self.generator = NumPyRandom()
+        self.deviation = { _ in deviation }
+        self.generator = NumPyRandom(seed: seed)
+    }
+    
+    @inlinable
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: Double, deviation: @escaping (Double) -> Double) {
+        self.mean = { _ in mean }
+        self.deviation = deviation
+        self.generator = NumPyRandom(seed: seed)
+    }
+    
+    @inlinable
+    public init(seed: UInt32 = .random(in: .min ... .max), mean: @escaping (Double) -> Double, deviation: @escaping (Double) -> Double) {
+        self.mean = mean
+        self.deviation = deviation
+        self.generator = NumPyRandom(seed: seed)
     }
     
     @inlinable
     @inline(__always)
     public func sample(_ t: Double) -> Complex<Double> {
-        generator.nextNormal(mean: mean, stdev: deviation)
+        generator.nextNormal(mean: mean(t), stdev: deviation(t))
     }
     
     @inlinable
@@ -42,14 +63,32 @@ public class GaussianWhiteNoiseProcess: ComplexWhiteNoiseProcess, @unchecked Sen
 }
 
 
-public struct GaussianWhiteNoiseProcessGenerator: WhiteNoiseProcessGenerator, Sendable {
+public struct GaussianWhiteNoiseProcessGenerator: WhiteNoiseProcessGenerator, @unchecked Sendable {
     @usableFromInline
-    internal let mean: Double
+    internal let mean: (Double) -> Double
     @usableFromInline
-    internal let deviation: Double
+    internal let deviation: (Double) -> Double
     
     @inlinable
     public init(mean: Double, deviation: Double) {
+        self.mean = { _ in mean }
+        self.deviation = { _ in deviation }
+    }
+    
+    @inlinable
+    public init(mean: @escaping (Double) -> Double, deviation: Double) {
+        self.mean = mean
+        self.deviation = { _ in deviation }
+    }
+    
+    @inlinable
+    public init(mean: Double, deviation: @escaping (Double) -> Double) {
+        self.mean = { _ in mean }
+        self.deviation = deviation
+    }
+    
+    @inlinable
+    public init(mean: @escaping (Double) -> Double, deviation: @escaping (Double) -> Double) {
         self.mean = mean
         self.deviation = deviation
     }

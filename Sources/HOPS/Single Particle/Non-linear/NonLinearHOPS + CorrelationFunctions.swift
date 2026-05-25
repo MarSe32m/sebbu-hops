@@ -200,7 +200,7 @@ public extension HOPSHierarchy {
         var ketState: Vector<Complex<Double>> = .zero(dimension)
         var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialBraHierarchyState.count), .zero(initialKetHierarchyState.count), .zero(initialShiftVector.count)], count: 4)
         var Heff = H(start)
-        let solver = RK45FixedStep<[Vector<Complex<Double>>]>(initialState: [initialBraHierarchyState, initialKetHierarchyState, initialShiftVector], t0: start, dt: stepSize) { t, currentStates in
+        let solver = RK4Solver<[Vector<Complex<Double>>]>(initialState: [initialBraHierarchyState, initialKetHierarchyState, initialShiftVector], t0: start, dt: stepSize) { t, currentStates in
             for i in 0..<dimension {
                 braState[i] = currentStates[0][i]
                 ketState[i] = currentStates[1][i]

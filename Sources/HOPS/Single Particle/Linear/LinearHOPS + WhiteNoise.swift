@@ -68,7 +68,7 @@ public extension HOPSHierarchy {
         var Heff = H(start)
         var systemState: Vector<Complex<Double>> = .zero(dimension)
         var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialHierarchyState.count)], count: 4)
-        let solver = SRK2FixedStep(initialState: [initialHierarchyState], t0: start, dt: stepSize) { t, currentState in
+        let solver = SRK2Solver(initialState: [initialHierarchyState], t0: start, dt: stepSize) { t, currentState in
             for i in 0..<dimension {
                 systemState[i] = currentState[0][i]
             }
@@ -335,7 +335,7 @@ public extension HOPSHierarchy {
             }
         }
         var Heff = H(start)
-        let solver = SRK2FixedStepMultiNoise(initialState: [initialHierarchyState], t0: start, dt: stepSize, f: { t, currentState in
+        let solver = SRK2MultiNoiseSolver(initialState: [initialHierarchyState], t0: start, dt: stepSize, f: { t, currentState in
             for i in 0..<dimension {
                 systemState[i] = currentState[0][i]
             }

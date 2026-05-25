@@ -62,7 +62,7 @@ public extension HOPSHierarchy {
         var D: Matrix<Complex<Double>> = .zeros(rows: 2 * G.count, columns: 2 * G.count)
         return withoutActuallyEscaping(H) { H in
             var Heff = H(start)
-            var solver = RK45FixedStep<[Vector<Complex<Double>>]>(initialState: [initialStateVector, initialStateVectorForShift, initialStateVectorForHierarchyShift], t0: start, dt: stepSize) { t, currentStates in
+            var solver = RK4Solver<[Vector<Complex<Double>>]>(initialState: [initialStateVector, initialStateVectorForShift, initialStateVectorForHierarchyShift], t0: start, dt: stepSize) { t, currentStates in
                 let currentState = currentStates[0]
                 for i in 0..<dimension {
                     systemState[i] = currentState[i]

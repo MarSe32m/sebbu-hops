@@ -24,17 +24,17 @@ public struct HOPSPropagator {
     }
     
     @inlinable
-    internal init(_ solver: RK45FixedStep<[Vector<Complex<Double>>]>) {
+    internal init(_ solver: RK4Solver<[Vector<Complex<Double>>]>) {
         self.solver = .deterministic(.init(solver))
     }
     
     @inlinable
-    internal init(_ solver: SRK2FixedStep<[Vector<Complex<Double>>], Complex<Double>>) {
+    internal init(_ solver: SRK2Solver<[Vector<Complex<Double>>], Complex<Double>>) {
         self.solver = .stochasticSingleNoise(.init(solver))
     }
     
     @inlinable
-    internal init(_ solver: SRK2FixedStepMultiNoise<[Vector<Complex<Double>>], Complex<Double>>) {
+    internal init(_ solver: SRK2MultiNoiseSolver<[Vector<Complex<Double>>], Complex<Double>>) {
         self.solver = .stochasticMultiNoise(.init(solver))
     }
     
@@ -67,9 +67,9 @@ extension HOPSPropagator {
     
     @usableFromInline
     enum Solver {
-        case deterministic(SolverBox<RK45FixedStep<[Vector<Complex<Double>>]>>)
-        case stochasticSingleNoise(SolverBox<SRK2FixedStep<[Vector<Complex<Double>>], Complex<Double>>>)
-        case stochasticMultiNoise(SolverBox<SRK2FixedStepMultiNoise<[Vector<Complex<Double>>], Complex<Double>>>)
+        case deterministic(SolverBox<RK4Solver<[Vector<Complex<Double>>]>>)
+        case stochasticSingleNoise(SolverBox<SRK2Solver<[Vector<Complex<Double>>], Complex<Double>>>)
+        case stochasticMultiNoise(SolverBox<SRK2MultiNoiseSolver<[Vector<Complex<Double>>], Complex<Double>>>)
         
         @inlinable
         @inline(__always)

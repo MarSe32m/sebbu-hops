@@ -24,7 +24,7 @@ public extension HOPSHierarchy {
     @inlinable
     @inline(__always)
     func solveNonLinear<Noise>(start: Double = 0.0, end: Double, initialState: Vector<Complex<Double>>, H: Matrix<Complex<Double>>, z: Noise, shiftType: ShiftType = .none, customOperators: [(_ t: Double, _ state: Vector<Complex<Double>>) -> Matrix<Complex<Double>>] = [], stepSize: Double = 0.01, includeHierarchy: Bool = false) -> (tSpace: [Double], trajectory: [Vector<Complex<Double>>]) where Noise: ComplexNoiseProcess {
-        solveNonLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveNonLinear(start: start, end: end, initialState: initialState, H: { _ in H }, z: z, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear HOPS equation for this hierarchy
@@ -84,7 +84,7 @@ public extension HOPSHierarchy {
         let LDagger = L.conjugateTranspose
         var resultCache: Deque<[Vector<Complex<Double>>]> = .init(repeating: [.zero(initialHierarchyState.count), .zero(initialShiftVector.count)], count: 4)
         var Heff = H(start)
-        let solver = RK45FixedStep<[Vector<Complex<Double>>]>(initialState: [initialHierarchyState, initialShiftVector], t0: start, dt: stepSize) { t, currentStates in
+        let solver = RK4Solver<[Vector<Complex<Double>>]>(initialState: [initialHierarchyState, initialShiftVector], t0: start, dt: stepSize) { t, currentStates in
             let currentState = currentStates[0]
             for i in 0..<dimension {
                 systemState[i] = currentState[i]
@@ -108,13 +108,13 @@ public extension HOPSHierarchy {
             let zTilde = z(t).conjugate + shift
             
             Heff.zeroElements()
-            Heff.add(H(t), multiplied: -.i)
-            Heff.add(L, multiplied: zTilde)
+            Heff._add(H(t), multiplied: -.i)
+            Heff._add(L, multiplied: zTilde)
             if shiftType == .meanField {
-                Heff.add(LDagger, multiplied: -shift.conjugate)
+                Heff._add(LDagger, multiplied: -shift.conjugate)
             }
             for customOperator in customOperators {
-                Heff.add(customOperator(t, systemState))
+                Heff._add(customOperator(t, systemState))
             }
             let kWSpan = kWArray.span
             result[0].components.withUnsafeMutableBufferPointer { resultBuffer in
