@@ -8,9 +8,6 @@
 import HOPS
 import SebbuScience
 import PythonKitUtilities
-#if canImport(Musl)
-import Musl
-#endif
 private func masterEquationSolution(endTime: Double, initialRho: Matrix<Complex<Double>>, H: Matrix<Complex<Double>>, gamma: Double, O: Matrix<Complex<Double>>) -> (tSpace: [Double], rho: [Matrix<Complex<Double>>]) {
     let ODagger = O.conjugateTranspose
     let ODaggerO = ODagger.dot(O)
@@ -53,8 +50,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
         spectralDensity(omega: omega, A: A, omegaC: omegaC)
     }
-    print("Generator done")
-//    let zGenerator = ZeroNoiseProcessGenerator()
+    //let zGenerator = ZeroNoiseProcessGenerator()
     let whiteNoiseGenerator = PreSampledGaussianWhiteNoiseProcessGenerator(mean: 0, deviation: (gamma / 2).squareRoot(), start: 0, end: endTime, step: 0.01)
     let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
     let _initialState: UniqueVector<Complex<Double>> = .init(copying: initialState)
@@ -77,17 +73,14 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
         let trajectoriesToCompute = Swift.min(realizations - trajectoriesComputed, batchSize)
         trajectoriesComputed += trajectoriesToCompute
         let batchComputationTime = ContinuousClock().measure {
-            print("Generating")
             let noises = zGenerator.generate(count: trajectoriesToCompute)
             let whiteNoises = whiteNoiseGenerator.generate(count: trajectoriesToCompute)
-            print("Generated")
             let linearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
                 let customOperator: @Sendable (Double, Vector<Complex<Double>>) -> Matrix<Complex<Double>> = { t, state in
                     gammaSigmaPlusSigmaMinus
                 }
                 return hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, z: z, whiteNoise: w, diffusionOperator: sigmaMinus, customOperators: [customOperator], stepSize: 0.01)
             }
-            print("Linear done")
             for (tSpace, trajectory) in linearTrajectories {
                 let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory)
                 if linearRho.isEmpty {
@@ -99,12 +92,10 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
                     }
                 }
             }
-            print("Linear rho done")
             let unifiedLinearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
                 let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(noise: w, rate: gamma, jumpOperator: sigmaMinus)
                 return unifiedHierarchy.solveLinear(end: endTime, initialState: _initialState, H: _H, noise: z, jumpOperator: jumpOperator, stepSize: 0.01)
             }
-            print("Unified linear done")
             for trajectory in unifiedLinearTrajectories {
                 let _rho = trajectory.densityMatrix(normalized: false)
                 if linearUnifiedRho.isEmpty {
@@ -116,7 +107,6 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
                     }
                 }
             }
-            print("Unified linear rho done")
         }
         print("[Linear]: \(batchComputationTime * Double(realizations - trajectoriesComputed) / Double(batchSize)) left")
     }
@@ -202,9 +192,6 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     let masterEquationY = rho.map { 2 * $0[0, 1].imaginary }
     let masterEquationZ = rho.map { $0[0, 0].real - $0[1, 1].real }
     
-#if canImport(Musl)
-Musl.exit(0)
-#endif
     plt.figure()
     plt.plot(x: linearTSpace, y: linearX, label: "Lin <x>")
     plt.plot(x: linearTSpace, y: linearY, label: "Lin <y>")
