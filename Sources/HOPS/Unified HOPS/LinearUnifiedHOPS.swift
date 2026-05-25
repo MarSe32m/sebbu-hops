@@ -136,7 +136,7 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        return solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: Span(noise), customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: [noise].span, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy
@@ -162,7 +162,7 @@ public extension UnifiedHOPSHierarchy {
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
         let H = UniqueMatrix<Complex<Double>>(copying: H)
-        return solveLinear(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: Span(noise), customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveLinear(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: [noise].span, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy
@@ -187,8 +187,7 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        let noiseSpan = Span(noise)
-        return solveLinear(start: start, end: end, initialState: initialState, H: H, noises: noiseSpan, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveLinear(start: start, end: end, initialState: initialState, H: H, noises: [noise].span, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
         
     }
     
@@ -275,7 +274,7 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: Span(noise), jumpOperator: jumpOperator, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: [noise].span, jumpOperator: jumpOperator, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy
