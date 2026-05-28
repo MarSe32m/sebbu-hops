@@ -16,8 +16,9 @@ PythonLibrary.useLibrary(at: "/usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0")
 #elseif os(Windows)
 //TODO: Set the library path on Windows machine
 #endif
-IBMExampleUnified(realizations: 1000, endTime: 20)
-IBMExample(realizations: 1000, endTime: 20, plotBCF: false)
+
+IBMExampleUnified(realizations: 10000, endTime: 20)
+IBMExample(realizations: 10000, endTime: 20, plotBCF: false)
 radiativeDampingExample(realizations: 10000, endTime: 100)
 ornsteinUhlenbeckExample()
 drivenDissipativeCavityMode(endTime: 50, omegaX: 0.5, g: 0.1, omegaC: 0.5, gammaMinus: 0.2, gammaPlus: 0.0)
@@ -53,7 +54,7 @@ plt.ylabel("<O>")
 plt.show()
 plt.close()
 
-//testRFSpectrum(omegaX: 1350.0, detuning: 0.0, omegaC: 1350.0, rabi: 0.5, a: 0.5, ksi: 1.447, kappa: 0.0175, gammaR: 0.175, temperature: 0.0, steadyStateTime: 200, endTime: 500, trajectories: 8192 << 4)
+testRFSpectrum(omegaX: 1350.0, detuning: 0.0, omegaC: 1350.0, rabi: 0.5, a: 0.5, ksi: 1.447, kappa: 0.0175, gammaR: 0.175, temperature: 0.0, steadyStateTime: 200, endTime: 500, trajectories: 8192 << 4)
 //testSingleParticleLinearHOPSTwoTimeCorrelationFunction(trajectories: 128)
 //testSingleParticleNonLinearHOPSTwoTimeCorrelationFunction(trajectories: 128)
 //radiativeDampingPlusPumpingMultiParticleExample(realizations: 8192, endTime: 750.0)

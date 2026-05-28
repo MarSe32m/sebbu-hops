@@ -475,7 +475,7 @@ func drivenDissipativeCavityMode(endTime: Double, omegaX: Double, g: Double, ome
     let METime = end - start
     
     start = .now
-    let (tSpaceHOPS, rhoHOPS) = solveModelWithUnifiedHOPS(endTime: endTime, omegaX: omegaX, g: g, omegaC: omegaC, gammaMinus: gammaMinus, gammaPlus: gammaPlus, depth: 2, trajectories: 10000)
+    let (tSpaceHOPS, rhoHOPS) = solveModelWithUnifiedHOPS(endTime: endTime, omegaX: omegaX, g: g, omegaC: omegaC, gammaMinus: gammaMinus, gammaPlus: gammaPlus, depth: 2, trajectories: 1000)
     end = .now
     let xHOPS = rhoHOPS.map { 2 * $0[0, 1].real / $0.trace.real }
     let yHOPS = rhoHOPS.map { -2 * $0[0, 1].imaginary / $0.trace.real }

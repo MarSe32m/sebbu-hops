@@ -33,24 +33,31 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
     // Array containing the dot products kW
     @usableFromInline
     internal let kWArray: UniqueArray<Complex<Double>>
+    
     // Sparse matrix containing the couplings between different levels of the hierarchy
     @usableFromInline
     internal let B: UniqueCSRMatrix<Complex<Double>>
+    
     // Sparse matrix containing the indices of the coupling to the upper levels in the hierarchy
     @usableFromInline
     internal let P: UniqueArray<UniqueCSRMatrix<Complex<Double>>>
+    
     // Sparse matrix containing the indicies of the coupling to the lower levels in the hierarchy
     @usableFromInline
     internal let N: UniqueArray<UniqueCSRMatrix<Complex<Double>>>
+    
     // Sparse matrix for noise shifts for the non-linear HOPS
     @usableFromInline
     internal let M: UniqueCSRMatrix<Complex<Double>>
+    
     // Indices for each of the shifts for the non-linear HOPS
     @usableFromInline
     internal let shiftIndices: UniqueArray<Range<Int>>
+    
     // G coefficients for the BCFs
     @usableFromInline
     internal let G: UniqueArray<Complex<Double>>
+    
     // W coefficients for the BCFs
     @usableFromInline
     internal let W: UniqueArray<Complex<Double>>
@@ -75,8 +82,8 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
     ///   - W: The W exponents of the bath correlation function exponential series
     ///   - depth: The depth of the hierarchy
     @inlinable
-    public init(dimension: Int, L: Matrix<Complex<Double>>, bathCorrelationFunction: BathCorrelationFunction, depth: Int) {
-        self.init(dimension: dimension, L: [L], bathCorrelationFunctions: [bathCorrelationFunction], depth: depth)
+    public init(dimension: Int, L: Matrix<Complex<Double>>, bathCorrelationFunctions: BathCorrelationFunction, depth: Int) {
+        self.init(dimension: dimension, L: [L], bathCorrelationFunctions: [bathCorrelationFunctions], depth: depth)
     }
     
     /// Constructs a new HOPSHierarchy for subsequent trajectory calculations with independent noise processes
@@ -87,8 +94,8 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
     ///   - W: The W exponents of the bath correlation function exponential series
     ///   - depth: The depth of the hierarchy
     @inlinable
-    public init(dimension: Int, L: Matrix<Complex<Double>>, bathCorrelationFunction: BathCorrelationFunction, truncationCondition: ([Int]) -> Bool) {
-        self.init(dimension: dimension, L: [L], bathCorrelationFunctions: [bathCorrelationFunction], truncationCondition: truncationCondition)
+    public init(dimension: Int, L: Matrix<Complex<Double>>, bathCorrelationFunctions: BathCorrelationFunction, truncationCondition: ([Int]) -> Bool) {
+        self.init(dimension: dimension, L: [L], bathCorrelationFunctions: [bathCorrelationFunctions], truncationCondition: truncationCondition)
     }
     
     /// Constructs a new HOPSHierarchy for subsequent trajectory calculations with independent noise processes
@@ -122,6 +129,12 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
         self.init(dimension: dimension, L: L, bathCorrelationFunctions: _bcfs, truncationCondition: truncationCondition)
     }
     
+    
+    @inlinable
+    public init(dimension: Int, L: [Matrix<Complex<Double>>], bathCorrelationFunctions: Matrix<BathCorrelationFunction>, depth: Int) {
+        let bcfs = bathCorrelationFunctions.extractRows()
+        self.init(dimension: dimension, L: L, bathCorrelationFunctions: bcfs, depth: depth)
+    }
     
     /// Constructs a new HOPSHierarchy for subsequent trajectory calculations
     /// - Parameters:

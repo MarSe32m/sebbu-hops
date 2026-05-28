@@ -43,7 +43,6 @@ public extension UnifiedHOPSHierarchy {
             self.init(G: G, W: W)
         }
         
-        @inline(always)
         @inlinable
         public func callAsFunction(_ t: Double) -> Complex<Double> {
             var result: Complex<Double> = .zero
@@ -55,13 +54,11 @@ public extension UnifiedHOPSHierarchy {
             return result
         }
         
-        @inline(always)
         @inlinable
         public func callAsFunction(_ t: [Double]) -> [Complex<Double>] {
             t.map { self($0) }
         }
         
-        @inline(always)
         @inlinable
         public func integral(from: Double = .zero, to: Double) -> Complex<Double> {
             let diff = to - from

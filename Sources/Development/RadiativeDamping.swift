@@ -43,7 +43,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     
     let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
     let hierarchy = HOPSHierarchy(dimension: 2, L: L, G: G, W: W, depth: 3)
-    let unifiedHierarchy = UnifiedHOPSHierarchy(dimension: 2, L: L, bathCorrelationFunction: .init(G: G, W: W), depth: 3)
+    let unifiedHierarchy = UnifiedHOPSHierarchy(dimension: 2, L: L, bathCorrelationFunctions: .init(G: G, W: W), depth: 3)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, Complex(0.175 / 2), Complex(0.175 / 2), Complex(0.1)], rows: 2, columns: 2)
     let _H: UniqueMatrix<Complex<Double>> = .init(copying: H)
@@ -94,7 +94,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
             }
             let unifiedLinearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
                 let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(noise: w, rate: gamma, jumpOperator: sigmaMinus)
-                return unifiedHierarchy.solveLinear(end: endTime, initialState: _initialState, H: _H, noise: z, jumpOperator: jumpOperator, stepSize: 0.01)
+                return unifiedHierarchy.solveLinear(end: endTime, initialState: _initialState, H: _H, noises: z, jumpOperators: jumpOperator, stepSize: 0.01)
             }
             for trajectory in unifiedLinearTrajectories {
                 let _rho = trajectory.densityMatrix(normalized: false)
@@ -149,7 +149,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
             
             let unifiedNonLinearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
                 let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(noise: w, rate: gamma, jumpOperator: sigmaMinus)
-                return unifiedHierarchy.solveNonLinear(end: endTime, initialState: _initialState, H: _H, noise: z, jumpOperator: jumpOperator, stepSize: 0.01)
+                return unifiedHierarchy.solveNonLinear(end: endTime, initialState: _initialState, H: _H, noises: z, jumpOperators: jumpOperator, stepSize: 0.01)
             }
             for trajectory in unifiedNonLinearTrajectories {
                 let _rho = trajectory.densityMatrix(normalized: true)

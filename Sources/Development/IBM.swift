@@ -83,7 +83,7 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
         spectralDensity(omega: omega, A: A, omegaC: omegaC)
     }
     let noiseGenerationStart = ContinuousClock().now
-    let noises = zGenerator.generate(count: realizations)
+    let noises = zGenerator.generateParallel(count: realizations)
     let noiseGenerationEnd = ContinuousClock().now
     print("Noise generation time: \(noiseGenerationEnd - noiseGenerationStart)")
     let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
@@ -136,20 +136,20 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
     let nonLinearZ = nonLinearRho.map { $0[0, 0].real - $0[1, 1].real }
     
     
-//    plt.figure()
-//    plt.plot(x: linearTSpace, y: linearX, label: "Lin <x>")
-//    plt.plot(x: linearTSpace, y: linearY, label: "Lin <y>")
-//    plt.plot(x: linearTSpace, y: linearZ, label: "Lin <z>")
-//    
-//    plt.plot(x: nonLinearTSpace, y: nonLinearX, label: "Non-lin <x>", linestyle: "--")
-//    plt.plot(x: nonLinearTSpace, y: nonLinearY, label: "Non-lin <y>", linestyle: "--")
-//    plt.plot(x: nonLinearTSpace, y: nonLinearZ, label: "Non-lin <z>", linestyle: "--")
-//    
-//    plt.legend()
-//    plt.xlabel("t")
-//    plt.ylabel("rho")
-//    plt.show()
-//    plt.close()
+    plt.figure()
+    plt.plot(x: linearTSpace, y: linearX, label: "Lin <x>")
+    plt.plot(x: linearTSpace, y: linearY, label: "Lin <y>")
+    plt.plot(x: linearTSpace, y: linearZ, label: "Lin <z>")
+    
+    plt.plot(x: nonLinearTSpace, y: nonLinearX, label: "Non-lin <x>", linestyle: "--")
+    plt.plot(x: nonLinearTSpace, y: nonLinearY, label: "Non-lin <y>", linestyle: "--")
+    plt.plot(x: nonLinearTSpace, y: nonLinearZ, label: "Non-lin <z>", linestyle: "--")
+    
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("rho")
+    plt.show()
+    plt.close()
 }
 
 public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF: Bool = false) {
@@ -168,14 +168,14 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     }()
     
     let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
-    let hierarchy = UnifiedHOPSHierarchy(dimension: 2, L: L, bathCorrelationFunction: BCF, depth: 5)
+    let hierarchy = UnifiedHOPSHierarchy(dimension: 2, L: L, bathCorrelationFunctions: BCF, depth: 4)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, Complex(renormalizationEnergy)], rows: 2, columns: 2)
     let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
         spectralDensity(omega: omega, A: A, omegaC: omegaC)
     }
     let noiseGenerationStart = ContinuousClock().now
-    let noises = zGenerator.generate(count: realizations)
+    let noises = zGenerator.generateParallel(count: realizations)
     let noiseGenerationEnd = ContinuousClock().now
     print("Noise generation time: \(noiseGenerationEnd - noiseGenerationStart)")
     let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
@@ -183,13 +183,13 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     
     let linearStart = ContinuousClock().now
     let linearTrajectories = noises.parallelMap { z in
-        hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, noise: z, stepSize: 0.01)
+        hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, noises: z, stepSize: 0.01)
     }
     let linearEnd = ContinuousClock().now
     print("Linear time: \(linearEnd - linearStart)")
     let nonLinearStart = ContinuousClock().now
     let nonLinearTrajectories = noises.parallelMap { z in
-        hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noise: z, shiftType: .meanField, stepSize: 0.01)
+        hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .meanField, stepSize: 0.01)
     }
     let nonLinearEnd = ContinuousClock().now
     print("Non-linear time: \(nonLinearEnd - nonLinearStart)")
@@ -228,18 +228,18 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     let nonLinearY = nonLinearRho.map { 2 * $0[0, 1].imaginary }
     let nonLinearZ = nonLinearRho.map { $0[0, 0].real - $0[1, 1].real }
     
-//    plt.figure()
-//    plt.plot(x: linearTSpace, y: linearX, label: "Lin <x>")
-//    plt.plot(x: linearTSpace, y: linearY, label: "Lin <y>")
-//    plt.plot(x: linearTSpace, y: linearZ, label: "Lin <z>")
-//    
-//    plt.plot(x: nonLinearTSpace, y: nonLinearX, label: "Non-lin <x>", linestyle: "--")
-//    plt.plot(x: nonLinearTSpace, y: nonLinearY, label: "Non-lin <y>", linestyle: "--")
-//    plt.plot(x: nonLinearTSpace, y: nonLinearZ, label: "Non-lin <z>", linestyle: "--")
-//    
-//    plt.legend()
-//    plt.xlabel("t")
-//    plt.ylabel("rho")
-//    plt.show()
-//    plt.close()
+    plt.figure()
+    plt.plot(x: linearTSpace, y: linearX, label: "Lin <x>")
+    plt.plot(x: linearTSpace, y: linearY, label: "Lin <y>")
+    plt.plot(x: linearTSpace, y: linearZ, label: "Lin <z>")
+    
+    plt.plot(x: nonLinearTSpace, y: nonLinearX, label: "Non-lin <x>", linestyle: "--")
+    plt.plot(x: nonLinearTSpace, y: nonLinearY, label: "Non-lin <y>", linestyle: "--")
+    plt.plot(x: nonLinearTSpace, y: nonLinearZ, label: "Non-lin <z>", linestyle: "--")
+    
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("rho")
+    plt.show()
+    plt.close()
 }
