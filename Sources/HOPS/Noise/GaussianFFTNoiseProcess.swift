@@ -15,7 +15,7 @@ public struct GaussianFFTNoiseProcess: ComplexNoiseProcess, @unchecked Sendable 
     public var tMax: Double { spline.x.last! }
     
     @inlinable
-    public init(tMax: Double, dtMax: Double = 0.01, deltaOmegaMax: Double = 0.01, omegaMax: Double? = nil, spectralDensity: (_ omega: Double) -> Double) {
+    public init(tMax: Double, dtMax: Double = 0.01, deltaOmegaMax: Double = 0.01, omegaMax: Double? = nil, seed: UInt32 = .random(in: .min ... .max), spectralDensity: (_ omega: Double) -> Double) {
         precondition(tMax > 0)
         precondition(dtMax > 0)
         precondition(deltaOmegaMax > 0)
@@ -36,7 +36,7 @@ public struct GaussianFFTNoiseProcess: ComplexNoiseProcess, @unchecked Sendable 
         let omegaSpace = [Double].linearSpace(0, omegaMax, N)
         
         // Generate complex Guassian coefficients
-        var generator = NumPyRandom()
+        var generator = NumPyRandom(seed: seed)
         let randomCoefficients: [Complex<Double>] = generator.nextNormal(count: N, mean: 0, stdev: .sqrt(0.5))
         
         // Evaluate J(omega) and build sqrt(J * deltaOmega) * xi

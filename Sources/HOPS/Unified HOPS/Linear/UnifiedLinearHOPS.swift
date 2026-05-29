@@ -254,11 +254,7 @@ public extension UnifiedHOPSHierarchy {
         withoutActuallyEscaping(H) { H in
             precondition(noises.count == L.count, "There must be equal amount of noises as there are coupling operators")
             precondition(initialTotalState.count == totalDimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial total state (including hierarchy)")
-            //TODO: Add UniqueVector<Complex<Double>> = .init(copying: other, count: count)
-            var initialState: UniqueVector<Complex<Double>> = .zero(dimension)
-            for i in 0..<dimension {
-                initialState[i] = initialTotalState[i]
-            }
+            let initialState: UniqueVector<Complex<Double>> = .init(copying: initialTotalState, count: dimension)
             return withUnsafePointer(to: self) { hierarchy in
                 let rhs = LinearHOPSStateFunc(hierarchy: hierarchy, H: H, noises: noises, customOperators: customOperators)
                 let k1 = rhs.zero()
@@ -461,10 +457,7 @@ public extension UnifiedHOPSHierarchy {
         withoutActuallyEscaping(H) { H in
             precondition(noises.count == L.count, "There must be equal amount of noises as there are coupling operators")
             precondition(initialTotalState.count == totalDimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial total state")
-            var initialState: UniqueVector<Complex<Double>> = .zero(dimension)
-            for i in 0..<dimension {
-                initialState[i] = initialTotalState[i]
-            }
+            let initialState: UniqueVector<Complex<Double>> = .init(copying: initialTotalState, count: dimension)
             return withUnsafePointer(to: self) { hierarchy in
                 let noiseScratch: UnsafeMutableBufferPointer<Complex<Double>> = .allocate(capacity: jumpOperators.count)
                 defer { noiseScratch.deallocate() }
@@ -477,6 +470,7 @@ public extension UnifiedHOPSHierarchy {
                 let temporary = rhs.zero()
                 var solver = UniqueSRK2Solver(t: start, dt: stepSize, rhs: rhs, drift0: drift0, drift1: drift1, noise0: noise0, noise1: noise1, temporary: temporary, noises: noiseSpan)
                 var state = LinearHOPSQSDState(totalStateVector: initialTotalState)
+                
                 var tSpace: [Double] = [0.0]
                 var systemTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialState)]
                 var totalTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialTotalState)]

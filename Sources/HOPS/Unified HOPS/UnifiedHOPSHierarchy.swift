@@ -62,6 +62,10 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
     @usableFromInline
     internal let W: UniqueArray<Complex<Double>>
     
+    // k-tuples for the hierarchy
+    @usableFromInline
+    internal let kTuples: UniqueArray<UniqueArray<Int>>
+    
     /// The coupling operators
     public let L: UniqueArray<UniqueMatrix<Complex<Double>>>
     
@@ -203,6 +207,9 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
             for O in L { span.append(.init(copying: O.conjugateTranspose)) }
         }
         self.dimension = dimension
+        self.kTuples = .init(capacity: kTuples.count) { span in
+            for kTuple in kTuples { span.append(.init(copying: kTuple)) }
+        }
     }
     
     @inlinable
@@ -389,7 +396,6 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
     
     @inlinable
     internal static func _generateShiftMatrix(systems: Int, G: [Complex<Double>], kTupleComponentIndexMap: [(n: Int, m: Int, mu: Int)]) -> UniqueCSRMatrix<Complex<Double>> {
-        //TODO: Check this
         var result = LILMatrix<Complex<Double>>(rows: G.count, columns: systems)
         for i in G.indices {
             let (_, m, _) = kTupleComponentIndexMap[i]
@@ -414,6 +420,34 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
 }
 
 public extension UnifiedHOPSHierarchy {
+    @inlinable
+    func fockStateAmplitudes(for trajectory: Trajectory, mode: Int, fockState: Int) -> [Double]? {
+        guard let totalTrajectory = trajectory.totalTrajectory else { return nil }
+        if mode >= kTuples[0].count { return .init(repeating: 0.0, count: totalTrajectory.count) }
+        var auxiliaryIndices: [Int] = []
+        for i in kTuples.indices {
+            if kTuples[i][mode] == fockState {
+                auxiliaryIndices.append(i)
+            }
+        }
+        var amplitudes: [Double] = []
+        for state in totalTrajectory {
+            let normSquared = state.normSquared
+            state.components.withUnsafeBufferPointer { stateBuffer in
+                var amplitude: Double = .zero
+                //TODO: Optimize this...
+                for i in auxiliaryIndices {
+                    let components = stateBuffer.baseAddress!.advanced(by: i * dimension)
+                    let auxiliary = UniqueVector(_unsafeComponents: .init(mutating: components), count: dimension)
+                    amplitude += auxiliary.normSquared
+                    let _ = auxiliary.consumeComponents()
+                }
+                amplitudes.append(amplitude / normSquared)
+            }
+        }
+        return amplitudes
+    }
+    
     struct Trajectory: Sendable {
         public let tSpace: [Double]
         public let systemTrajectory: [Vector<Complex<Double>>]
@@ -440,6 +474,76 @@ public extension UnifiedHOPSHierarchy {
             for state in systemTrajectory {
                 rho.append(state.outer(state.conjugate))
                 if normalized { rho[rho.count - 1] /= state.normSquared }
+            }
+            return rho
+        }
+        
+        /// Computes the expectation value for the given operator
+        /// - Parameters:
+        ///   - O: Operator for which to compute the expectation value
+        ///   - normalized: Whether the expectation value should be taken over normalized states
+        /// - Returns: The expectation values for the trajectory
+        @inlinable
+        public func expectationValue(for O: Matrix<Complex<Double>>, normalized: Bool) -> [Complex<Double>] {
+            var expectationValue: [Complex<Double>] = []
+            expectationValue.reserveCapacity(systemTrajectory.count)
+            for state in systemTrajectory {
+                var _expectationValue = state.inner(state, metric: O)
+                if normalized {
+                    _expectationValue /= state.normSquared
+                }
+                expectationValue.append(_expectationValue)
+            }
+            return expectationValue
+        }
+    }
+    
+    struct CorrelationFunctionTrajectory: Sendable {
+        public enum NormalizationSide: Sendable {
+            case ket
+            case bra
+            case none
+        }
+        
+        public let tSpace: [Double]
+        public let systemKetTrajectory: [Vector<Complex<Double>>]
+        public let systemBraTrajectory: [Vector<Complex<Double>>]
+        public let totalKetTrajectory: [Vector<Complex<Double>>]?
+        public let totalBraTrajectory: [Vector<Complex<Double>>]?
+        public let normalizationSide: NormalizationSide
+        
+        @inlinable
+        @inline(always)
+        init(tSpace: [Double], systemKetTrajectory: [Vector<Complex<Double>>], systemBraTrajectory: [Vector<Complex<Double>>], totalKetTrajectory: [Vector<Complex<Double>>]?, totalBraTrajectory: [Vector<Complex<Double>>]?, normalizationSide: NormalizationSide) {
+            self.tSpace = tSpace
+            self.systemKetTrajectory = systemKetTrajectory
+            self.systemBraTrajectory = systemBraTrajectory
+            self.totalKetTrajectory = totalKetTrajectory
+            self.totalBraTrajectory = totalBraTrajectory
+            self.normalizationSide = .none
+        }
+        
+        /// Maps the trajectory to the corresponding density matrix
+        /// - Parameters:
+        ///   - normalized: Whether the trajectory should be normalized.
+        /// - Returns: Array of density matrices
+        @inlinable
+        @inline(always)
+        public func densityMatrix(normalized: Bool) -> [Matrix<Complex<Double>>] {
+            var rho: [Matrix<Complex<Double>>] = []
+            rho.reserveCapacity(systemKetTrajectory.count)
+            for (ket, bra) in zip(systemKetTrajectory, systemBraTrajectory) {
+                rho.append(ket.outer(bra.conjugate))
+                if normalized {
+                    switch normalizationSide {
+                    case .ket:
+                        rho[rho.count - 1] /= ket.normSquared
+                    case .bra:
+                        rho[rho.count - 1] /= bra.normSquared
+                    case .none:
+                        break
+                    }
+                }
             }
             return rho
         }

@@ -243,3 +243,88 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     plt.show()
     plt.close()
 }
+
+public func IBMFockStateAmplitudesExample(endTime: Double = 7.0) {
+    let A = 0.27
+    let omegaC = 1.447
+    
+    let bcfTerms = 3
+    let hierarchyDepth = 4
+    
+    let renormalizationEnergy = Quad.integrate(a: 0, b: .infinity) { omega in
+        spectralDensityByOmega(omega: omega, A: A, omegaC: omegaC)
+    }
+    let BCF = {
+        let tSpace: [Double] = .linearSpace(0, 10, 501)
+        return UnifiedHOPSHierarchy.BathCorrelationFunction(tSpace: tSpace, terms: bcfTerms) { t in
+            bathCorrelationFunction(A: A, omegaC: omegaC, t: t)
+        }
+    }()
+    print(BCF)
+    let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
+    let hierarchy = UnifiedHOPSHierarchy(dimension: 2, L: L, bathCorrelationFunctions: BCF, depth: hierarchyDepth)
+    
+    let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, Complex(renormalizationEnergy)], rows: 2, columns: 2)
+//    let noise = GaussianFFTNoiseProcess(tMax: endTime, seed: 1239473214) { omega in
+//        spectralDensity(omega: omega, A: A, omegaC: omegaC)
+//    }
+    let noise = ZeroNoiseProcess()
+    let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
+    //let _initialState: UniqueVector<Complex<Double>> = .init(copying: initialState)
+    
+    let linearTrajectory = hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, noises: noise, stepSize: 0.01, includeHierarchy: true)
+    let nonLinearTrajectory = hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: noise, stepSize: 0.01, includeHierarchy: true)
+    let nonLinearTrajectoryShifted = hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: noise, shiftType: .meanField, stepSize: 0.01, includeHierarchy: true)
+    
+    // Plot linear hiearchy occupations
+    plt.figure()
+    
+    for fockStateNumber in 0...hierarchyDepth {
+        for mode in 0..<bcfTerms {
+            guard let fockStateAmplitudes = hierarchy.fockStateAmplitudes(for: linearTrajectory, mode: mode, fockState: fockStateNumber) else {
+                fatalError("Couldn't obtain fock state amplitudes")
+            }
+            plt.plot(x: linearTrajectory.tSpace, y: fockStateAmplitudes, label: "\(fockStateNumber)_\(mode)")
+        }
+    }
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("Amplitudes")
+    plt.title("Linear occupations")
+    plt.show()
+    plt.close()
+    
+    // Plot non-linear hiearchy occupations
+    plt.figure()
+    for fockStateNumber in 0...hierarchyDepth {
+        for mode in 0..<bcfTerms {
+            guard let fockStateAmplitudes = hierarchy.fockStateAmplitudes(for: nonLinearTrajectory, mode: mode, fockState: fockStateNumber) else {
+                fatalError("Couldn't obtain fock state amplitudes")
+            }
+            plt.plot(x: nonLinearTrajectory.tSpace, y: fockStateAmplitudes, label: "\(fockStateNumber)_\(mode)")
+        }
+    }
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("Amplitudes")
+    plt.title("Non-Linear occupations")
+    plt.show()
+    plt.close()
+    
+    // Plot non-linear shifted hiearchy occupations
+    plt.figure()
+    for fockStateNumber in 0...hierarchyDepth {
+        for mode in 0..<bcfTerms {
+            guard let fockStateAmplitudes = hierarchy.fockStateAmplitudes(for: nonLinearTrajectoryShifted, mode: mode, fockState: fockStateNumber) else {
+                fatalError("Couldn't obtain fock state amplitudes")
+            }
+            plt.plot(x: nonLinearTrajectoryShifted.tSpace, y: fockStateAmplitudes, label: "\(fockStateNumber)_\(mode)")
+        }
+    }
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("Amplitudes")
+    plt.title("Non-Linear shifted occupations")
+    plt.show()
+    plt.close()
+}

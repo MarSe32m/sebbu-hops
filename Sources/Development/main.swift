@@ -17,10 +17,11 @@ PythonLibrary.useLibrary(at: "/usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0")
 //TODO: Set the library path on Windows machine
 #endif
 
-IBMExampleUnified(realizations: 10000, endTime: 20)
-IBMExample(realizations: 10000, endTime: 20, plotBCF: false)
+IBMFockStateAmplitudesExample(endTime: 100)
+//IBMExampleUnified(realizations: 10000, endTime: 7)
+//IBMExample(realizations: 10000, endTime: 7, plotBCF: false)
 radiativeDampingExample(realizations: 10000, endTime: 100)
-ornsteinUhlenbeckExample()
+//ornsteinUhlenbeckExample()
 drivenDissipativeCavityMode(endTime: 50, omegaX: 0.5, g: 0.1, omegaC: 0.5, gammaMinus: 0.2, gammaPlus: 0.0)
 //basisTest()
 HOPSvsNMQSD(realizations: 1)
