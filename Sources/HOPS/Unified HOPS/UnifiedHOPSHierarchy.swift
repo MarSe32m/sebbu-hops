@@ -432,7 +432,7 @@ public extension UnifiedHOPSHierarchy {
         }
         var amplitudes: [Double] = []
         for state in totalTrajectory {
-            let normSquared = state.normSquared
+            //let normSquared = state.normSquared
             state.components.withUnsafeBufferPointer { stateBuffer in
                 var amplitude: Double = .zero
                 //TODO: Optimize this...
@@ -442,7 +442,7 @@ public extension UnifiedHOPSHierarchy {
                     amplitude += auxiliary.normSquared
                     let _ = auxiliary.consumeComponents()
                 }
-                amplitudes.append(amplitude / normSquared)
+                amplitudes.append(amplitude /*/ normSquared*/)
             }
         }
         return amplitudes

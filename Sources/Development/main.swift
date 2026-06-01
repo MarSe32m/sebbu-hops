@@ -17,7 +17,7 @@ PythonLibrary.useLibrary(at: "/usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0")
 //TODO: Set the library path on Windows machine
 #endif
 
-IBMFockStateAmplitudesExample(endTime: 100)
+IBMFockStateAmplitudesExample(endTime: 1000)
 //IBMExampleUnified(realizations: 10000, endTime: 7)
 //IBMExample(realizations: 10000, endTime: 7, plotBCF: false)
 radiativeDampingExample(realizations: 10000, endTime: 100)
