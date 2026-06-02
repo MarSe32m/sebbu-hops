@@ -16,9 +16,6 @@ extension UnifiedHOPSHierarchy {
     internal struct LinearHOPSStateFunc<Noise: ComplexNoiseProcess>: ~Copyable, ~Escapable, ODERHSFunction {
         @usableFromInline
         internal let hierarchyPointer: UnsafePointer<UnifiedHOPSHierarchy>
-
-        @usableFromInline
-        var systemState: UniqueVector<Complex<Double>>
         
         @usableFromInline
         var Heff: UniqueMatrix<Complex<Double>>
@@ -49,7 +46,6 @@ extension UnifiedHOPSHierarchy {
             self.dimension = hierarchy.pointee.dimension
             self.totalDimension = hierarchy.pointee.totalDimension
             self.hierarchyPointer = hierarchy
-            self.systemState = .zero(hierarchy.pointee.dimension)
             self.Heff = .zeros(rows: hierarchyPointer.pointee.dimension, columns: hierarchyPointer.pointee.dimension)
             self.H = H
             self.noises = noises
@@ -60,11 +56,8 @@ extension UnifiedHOPSHierarchy {
         public mutating func evaluate(t: Double, y state: borrowing LinearHOPSState, dy result: inout LinearHOPSState) {
             let kWSpan = hierarchyPointer.pointee.kWArray.span
             let LSpan = hierarchyPointer.pointee.L.span
-            var systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.systemState.components, count: dimension)
+            var systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
             var Heff: UniqueMatrix<Complex<Double>> = .init(_unsafeElements: self.Heff.elements, rows: dimension, columns: dimension)
-            for i in 0..<dimension {
-                systemState[i] = state.totalStateVector[unchecked: i]
-            }
             Heff.zeroElements()
             H(t, &Heff)
             Heff.multiply(by: -.i)

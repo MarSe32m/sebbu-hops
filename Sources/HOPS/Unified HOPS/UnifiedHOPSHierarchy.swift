@@ -633,6 +633,14 @@ public extension UnifiedHOPSHierarchy {
         internal func operate(on state: UnsafePointer<Complex<Double>>, into: UnsafeMutablePointer<Complex<Double>>) {
             jumpOperator.unsafeDot(state, into: into)
         }
+        
+        @inlinable
+        @inline(always)
+        internal func operateNonLinearNormalized(on state: borrowing UniqueVector<Complex<Double>>, into: inout UniqueVector<Complex<Double>>) {
+            fatalError("TODO: Implement")
+//            jumpOperator.dot(state, into: &into)
+//            into.add(state, multiplied: 1)
+        }
     }
 }
 

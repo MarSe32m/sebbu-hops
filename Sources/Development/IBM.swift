@@ -245,7 +245,7 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
 }
 
 public func IBMFockStateAmplitudesExample(endTime: Double = 7.0) {
-    let A = 0.25
+    let A = 0.027
     let omegaC = 1.447
     
     let bcfTerms = 3

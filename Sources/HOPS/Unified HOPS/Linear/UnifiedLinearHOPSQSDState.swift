@@ -16,9 +16,6 @@ extension UnifiedHOPSHierarchy {
         public typealias NoiseType = Complex<Double>
         @usableFromInline
         internal let hierarchyPointer: UnsafePointer<UnifiedHOPSHierarchy>
-
-        @usableFromInline
-        var systemState: UniqueVector<Complex<Double>>
         
         @usableFromInline
         var Heff: UniqueMatrix<Complex<Double>>
@@ -53,7 +50,6 @@ extension UnifiedHOPSHierarchy {
             self.dimension = hierarchy.pointee.dimension
             self.totalDimension = hierarchy.pointee.totalDimension
             self.hierarchyPointer = hierarchy
-            self.systemState = .zero(hierarchyPointer.pointee.dimension)
             self.Heff = .zeros(rows: hierarchyPointer.pointee.dimension, columns: hierarchyPointer.pointee.dimension)
             self.H = H
             self.noises = noises
@@ -65,7 +61,7 @@ extension UnifiedHOPSHierarchy {
         public mutating func drift(t: Double, y state: borrowing LinearHOPSQSDState, into result: inout LinearHOPSQSDState) {
             let kWSpan = hierarchyPointer.pointee.kWArray.span
             let LSpan = hierarchyPointer.pointee.L.span
-            var systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: systemState.components, count: dimension)
+            var systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
             var Heff: UniqueMatrix<Complex<Double>> = .init(_unsafeElements: Heff.elements, rows: dimension, columns: dimension)
             for i in 0..<dimension {
                 systemState[i] = state.totalStateVector[i]

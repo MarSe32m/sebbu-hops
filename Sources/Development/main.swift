@@ -18,8 +18,8 @@ PythonLibrary.useLibrary(at: "/usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0")
 #endif
 
 IBMFockStateAmplitudesExample(endTime: 1000)
-//IBMExampleUnified(realizations: 10000, endTime: 7)
-//IBMExample(realizations: 10000, endTime: 7, plotBCF: false)
+IBMExampleUnified(realizations: 10000, endTime: 7)
+IBMExample(realizations: 10000, endTime: 7, plotBCF: false)
 radiativeDampingExample(realizations: 10000, endTime: 100)
 //ornsteinUhlenbeckExample()
 drivenDissipativeCavityMode(endTime: 50, omegaX: 0.5, g: 0.1, omegaC: 0.5, gammaMinus: 0.2, gammaPlus: 0.0)

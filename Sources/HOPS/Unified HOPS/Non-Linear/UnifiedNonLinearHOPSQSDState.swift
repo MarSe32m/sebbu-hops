@@ -17,9 +17,6 @@ extension UnifiedHOPSHierarchy {
         public typealias NoiseType = Complex<Double>
         @usableFromInline
         internal let hierarchyPointer: UnsafePointer<UnifiedHOPSHierarchy>
-
-        @usableFromInline
-        var systemState: UniqueVector<Complex<Double>>
         
         @usableFromInline
         var Heff: UniqueMatrix<Complex<Double>>
@@ -66,7 +63,6 @@ extension UnifiedHOPSHierarchy {
             self.dimension = hierarchy.pointee.dimension
             self.totalDimension = hierarchy.pointee.totalDimension
             self.hierarchyPointer = hierarchy
-            self.systemState = .zero(hierarchyPointer.pointee.dimension)
             self.Heff = .zeros(rows: hierarchyPointer.pointee.dimension, columns: hierarchyPointer.pointee.dimension)
             self.H = H
             self.noises = noises
@@ -87,14 +83,11 @@ extension UnifiedHOPSHierarchy {
             let LSpan = hierarchyPointer.pointee.L.span
             let LDaggerSpan = hierarchyPointer.pointee.LDagger.span
             
-            var systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.systemState.components, count: dimension)
+            var systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
             var Heff: UniqueMatrix<Complex<Double>> = .init(_unsafeElements: self.Heff.elements, rows: dimension, columns: dimension)
             var LDaggerExpectations: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.LDaggerExpectationValues.components, count: LDaggerSpan.count)
             var noiseShifts: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.noiseShifts.components, count: noises.count)
             
-            for i in 0..<dimension {
-                systemState[i] = state.totalStateVector[unchecked: i]
-            }
             // Noise shifting
             let normSquared = systemState.normSquared
             for i in 0..<LDaggerExpectations.count {
@@ -106,9 +99,9 @@ extension UnifiedHOPSHierarchy {
                 result.shiftVector[unchecked: i] = Relaxed.multiplyAdd(WConjugateVector[unchecked: i], state.shiftVector[unchecked: i], result.shiftVector[unchecked: i])
             }
             for i in hierarchyPointer.pointee.shiftIndices.indices {
-                noiseShifts[i] = .zero
+                noiseShifts[unchecked: i] = .zero
                 for j in hierarchyPointer.pointee.shiftIndices[i] {
-                    noiseShifts[i] = Relaxed.sum(noiseShifts[i], state.shiftVector[j])
+                    noiseShifts[unchecked: i] = Relaxed.sum(noiseShifts[unchecked: i], state.shiftVector[unchecked: j])
                 }
             }
             
