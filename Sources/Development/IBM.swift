@@ -187,12 +187,34 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     }
     let linearEnd = ContinuousClock().now
     print("Linear time: \(linearEnd - linearStart)")
+    
     let nonLinearStart = ContinuousClock().now
     let nonLinearTrajectories = noises.parallelMap { z in
-        hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .meanField, stepSize: 0.01)
+        hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .none, stepSize: 0.01)
     }
     let nonLinearEnd = ContinuousClock().now
     print("Non-linear time: \(nonLinearEnd - nonLinearStart)")
+    
+    let nonLinearNormalizedStart = ContinuousClock().now
+    let nonLinearNormalizedTrajectories = noises.parallelMap { z in
+        hierarchy.solveNonLinearNormalized(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .none, stepSize: 0.01)
+    }
+    let nonLinearNormalizedEnd = ContinuousClock().now
+    print("Non-linear normalized time: \(nonLinearNormalizedEnd - nonLinearNormalizedStart)")
+    
+    let nonLinearShiftedStart = ContinuousClock.now
+    let nonLinearShiftedTrajectories = noises.parallelMap { z in
+        hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .meanField, stepSize: 0.01)
+    }
+    let nonLinearShiftedEnd = ContinuousClock.now
+    print("Non-linear shifted time: \(nonLinearShiftedEnd - nonLinearShiftedStart)")
+    
+    let nonLinearNormalizedShiftedStart = ContinuousClock.now
+    let nonLinearNormalizedShiftedTrajectories = noises.parallelMap { z in
+        hierarchy.solveNonLinearNormalized(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .meanField, stepSize: 0.01)
+    }
+    let nonLinearNormalizedShiftedEnd = ContinuousClock.now
+    print("Non-linear normalized shifted time: \(nonLinearNormalizedShiftedEnd - nonLinearNormalizedShiftedStart)")
     
     let linearTSpace = linearTrajectories[0].tSpace
     var linearRho: [Matrix<Complex<Double>>] = []
@@ -220,6 +242,45 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
         }
     }
     
+    let nonLinearNormalizedTSpace = nonLinearTrajectories[0].tSpace
+    var nonLinearNormalizedRho: [Matrix<Complex<Double>>] = []
+    for trajectory in nonLinearNormalizedTrajectories {
+        let _rho = trajectory.densityMatrix(normalized: false)
+        if nonLinearNormalizedRho.isEmpty {
+            nonLinearNormalizedRho = _rho.map { $0 / Double(realizations) }
+        } else {
+            for i in 0..<_rho.count {
+                nonLinearNormalizedRho[i].add(_rho[i], multiplied: 1 / Double(realizations))
+            }
+        }
+    }
+    
+    let nonLinearShiftedTSpace = nonLinearShiftedTrajectories[0].tSpace
+    var nonLinearShiftedRho: [Matrix<Complex<Double>>] = []
+    for trajectory in nonLinearShiftedTrajectories {
+        let _rho = trajectory.densityMatrix(normalized: true)
+        if nonLinearShiftedRho.isEmpty {
+            nonLinearShiftedRho = _rho.map { $0 / Double(realizations) }
+        } else {
+            for i in 0..<_rho.count {
+                nonLinearShiftedRho[i].add(_rho[i], multiplied: 1 / Double(realizations))
+            }
+        }
+    }
+    
+    let nonLinearNormalizedShiftedTSpace = nonLinearNormalizedShiftedTrajectories[0].tSpace
+    var nonLinearNormalizedShiftedRho: [Matrix<Complex<Double>>] = []
+    for trajectory in nonLinearNormalizedShiftedTrajectories {
+        let _rho = trajectory.densityMatrix(normalized: false)
+        if nonLinearNormalizedShiftedRho.isEmpty {
+            nonLinearNormalizedShiftedRho = _rho.map { $0 / Double(realizations) }
+        } else {
+            for i in 0..<_rho.count {
+                nonLinearNormalizedShiftedRho[i].add(_rho[i], multiplied: 1 / Double(realizations))
+            }
+        }
+    }
+    
     let linearX = linearRho.map { 2 * $0[0, 1].real }
     let linearY = linearRho.map { 2 * $0[0, 1].imaginary }
     let linearZ = linearRho.map { $0[0, 0].real - $0[1, 1].real }
@@ -227,6 +288,18 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     let nonLinearX = nonLinearRho.map { 2 * $0[0, 1].real }
     let nonLinearY = nonLinearRho.map { 2 * $0[0, 1].imaginary }
     let nonLinearZ = nonLinearRho.map { $0[0, 0].real - $0[1, 1].real }
+    
+    let nonLinearNormalizedX = nonLinearNormalizedRho.map { 2 * $0[0, 1].real }
+    let nonLinearNormalizedY = nonLinearNormalizedRho.map { 2 * $0[0, 1].imaginary }
+    let nonLinearNormalizedZ = nonLinearNormalizedRho.map { $0[0, 0].real - $0[1, 1].real }
+    
+    let nonLinearShiftedX = nonLinearShiftedRho.map { 2 * $0[0, 1].real }
+    let nonLinearShiftedY = nonLinearShiftedRho.map { 2 * $0[0, 1].imaginary }
+    let nonLinearShiftedZ = nonLinearShiftedRho.map { $0[0, 0].real - $0[1, 1].real }
+    
+    let nonLinearNormalizedShiftedX = nonLinearNormalizedShiftedRho.map { 2 * $0[0, 1].real }
+    let nonLinearNormalizedShiftedY = nonLinearNormalizedShiftedRho.map { 2 * $0[0, 1].imaginary }
+    let nonLinearNormalizedShiftedZ = nonLinearNormalizedShiftedRho.map { $0[0, 0].real - $0[1, 1].real }
     
     plt.figure()
     plt.plot(x: linearTSpace, y: linearX, label: "Lin <x>")
@@ -242,6 +315,54 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     plt.ylabel("rho")
     plt.show()
     plt.close()
+    
+    
+    plt.figure()
+    plt.plot(x: nonLinearTSpace, y: nonLinearX, label: "Non-lin <x>")
+    plt.plot(x: nonLinearTSpace, y: nonLinearY, label: "Non-lin <y>")
+    plt.plot(x: nonLinearTSpace, y: nonLinearZ, label: "Non-lin <z>")
+    
+    plt.plot(x: nonLinearShiftedTSpace, y: nonLinearShiftedX, label: "Non-lin shifted <x>", linestyle: "--")
+    plt.plot(x: nonLinearShiftedTSpace, y: nonLinearShiftedY, label: "Non-lin shifted <y>", linestyle: "--")
+    plt.plot(x: nonLinearShiftedTSpace, y: nonLinearShiftedZ, label: "Non-lin shifted <z>", linestyle: "--")
+    
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("rho")
+    plt.show()
+    plt.close()
+    
+    
+    plt.figure()
+    plt.plot(x: nonLinearTSpace, y: nonLinearX, label: "Non-lin <x>")
+    plt.plot(x: nonLinearTSpace, y: nonLinearY, label: "Non-lin <y>")
+    plt.plot(x: nonLinearTSpace, y: nonLinearZ, label: "Non-lin <z>")
+    
+    plt.plot(x: nonLinearNormalizedTSpace, y: nonLinearNormalizedX, label: "Non-lin normalized <x>", linestyle: "--")
+    plt.plot(x: nonLinearNormalizedTSpace, y: nonLinearNormalizedY, label: "Non-lin normalized <y>", linestyle: "--")
+    plt.plot(x: nonLinearNormalizedTSpace, y: nonLinearNormalizedZ, label: "Non-lin normalized <z>", linestyle: "--")
+    
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("rho")
+    plt.show()
+    plt.close()
+    
+    plt.figure()
+    plt.plot(x: nonLinearNormalizedTSpace, y: nonLinearNormalizedX, label: "Non-lin normalized <x>")
+    plt.plot(x: nonLinearNormalizedTSpace, y: nonLinearNormalizedY, label: "Non-lin normalized <y>")
+    plt.plot(x: nonLinearNormalizedTSpace, y: nonLinearNormalizedZ, label: "Non-lin normalized <z>")
+    
+    plt.plot(x: nonLinearNormalizedShiftedTSpace, y: nonLinearNormalizedShiftedX, label: "Non-lin normalized shifted <x>", linestyle: "--")
+    plt.plot(x: nonLinearNormalizedShiftedTSpace, y: nonLinearNormalizedShiftedY, label: "Non-lin normalized shifted <y>", linestyle: "--")
+    plt.plot(x: nonLinearNormalizedShiftedTSpace, y: nonLinearNormalizedShiftedZ, label: "Non-lin normalized shifted <z>", linestyle: "--")
+    
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("rho")
+    plt.show()
+    plt.close()
+    
 }
 
 public func IBMFockStateAmplitudesExample(endTime: Double = 7.0) {

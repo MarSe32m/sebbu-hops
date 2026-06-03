@@ -54,6 +54,10 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
     @usableFromInline
     internal let shiftIndices: UniqueArray<Range<Int>>
     
+    // Sparse matrices for auxiliary states participating in the normalization factor
+    @usableFromInline
+    internal let normalizationPMatrices: UniqueArray<UniqueCSRMatrix<Complex<Double>>>
+    
     // G coefficients for the BCFs
     @usableFromInline
     internal let G: UniqueArray<Complex<Double>>
@@ -210,6 +214,7 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
         self.kTuples = .init(capacity: kTuples.count) { span in
             for kTuple in kTuples { span.append(.init(copying: kTuple)) }
         }
+        self.normalizationPMatrices = UnifiedHOPSHierarchy._generateNormalizationPMatrices(systems: L.count, dimension: dimension, G: flatG, positiveNeighbourIndices: positiveNeighbourIndices, kTupleComponentIndexMap: kTupleComponentIndexMap)
     }
     
     @inlinable
@@ -417,6 +422,27 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
         }
         return result
     }
+    
+    @inlinable
+    internal static func _generateNormalizationPMatrices(
+        systems: Int, dimension: Int, G: [Complex<Double>],
+        positiveNeighbourIndices: [[(component: Int, neighbourIndex: Int)]],
+        kTupleComponentIndexMap: [(n: Int, m: Int, mu: Int)]
+    ) -> UniqueArray<UniqueCSRMatrix<Complex<Double>>> {
+        var lilMatrices: [LILMatrix<Complex<Double>>] = .init(repeating: LILMatrix<Complex<Double>>(rows: dimension, columns: dimension * (G.count + 1)), count: systems)
+        for (kIndex, positiveNeighbourIndex) in positiveNeighbourIndices[0] {
+            let column = positiveNeighbourIndex
+            let (n, _, _) = kTupleComponentIndexMap[kIndex]
+            for i in 0..<dimension {
+                lilMatrices[n][i, column * dimension + i] = .one
+            }
+        }
+        return .init(capacity: lilMatrices.count) { span in
+            for matrix in lilMatrices {
+                span.append(.init(from: matrix))
+            }
+        }
+    }
 }
 
 public extension UnifiedHOPSHierarchy {
@@ -431,15 +457,16 @@ public extension UnifiedHOPSHierarchy {
             }
         }
         var amplitudes: [Double] = []
-        for state in totalTrajectory {
+        for (systemState, totalState) in zip(trajectory.systemTrajectory, totalTrajectory) {
             //let normSquared = state.normSquared
-            state.components.withUnsafeBufferPointer { stateBuffer in
+            let systemNormSquared = systemState.normSquared
+            totalState.components.withUnsafeBufferPointer { stateBuffer in
                 var amplitude: Double = .zero
                 //TODO: Optimize this...
                 for i in auxiliaryIndices {
                     let components = stateBuffer.baseAddress!.advanced(by: i * dimension)
                     let auxiliary = UniqueVector(_unsafeComponents: .init(mutating: components), count: dimension)
-                    amplitude += auxiliary.normSquared
+                    amplitude += auxiliary.normSquared / systemNormSquared
                     let _ = auxiliary.consumeComponents()
                 }
                 amplitudes.append(amplitude /*/ normSquared*/)

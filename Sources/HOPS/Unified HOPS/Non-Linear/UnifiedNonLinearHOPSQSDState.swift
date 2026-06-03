@@ -109,10 +109,12 @@ extension UnifiedHOPSHierarchy {
             H(t, &Heff)
             Heff.multiply(by: -.i)
             
+            var scalarFactor: Complex<Double> = .zero
             for i in LSpan.indices {
                 Heff.add(LSpan[unchecked: i], multiplied: noises[unchecked: i](t).conjugate + noiseShifts[unchecked: i])
                 if shiftType == .meanField {
                     Heff.add(LDaggerSpan[unchecked: i], multiplied: -noiseShifts[unchecked: i].conjugate)
+                    scalarFactor = Relaxed.multiplyAdd(noiseShifts[unchecked: i].conjugate, LDaggerExpectations[unchecked: i], scalarFactor)
                 }
             }
             for i in 0..<customOperators.count {
@@ -134,6 +136,7 @@ extension UnifiedHOPSHierarchy {
                 let kW = kWSpan[unchecked: kWIndex]
                 for i in 0..<dimension {
                     resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
+                    resultPointer[i] = Relaxed.multiplyAdd(scalarFactor, currentStatePointer[i], resultPointer[i])
                 }
                 resultPointer += dimension
                 currentStatePointer += dimension

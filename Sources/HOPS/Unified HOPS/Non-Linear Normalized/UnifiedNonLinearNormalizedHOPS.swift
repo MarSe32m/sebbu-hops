@@ -38,7 +38,7 @@ public extension UnifiedHOPSHierarchy {
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
         let H: UniqueMatrix<Complex<Double>> = .init(copying: H)
-        return solveNonLinear(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveNonLinearNormalized(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure
@@ -67,7 +67,7 @@ public extension UnifiedHOPSHierarchy {
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
         let H: UniqueMatrix<Complex<Double>> = .init(copying: H)
-        return solveNonLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveNonLinearNormalized(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure
@@ -95,7 +95,7 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        solveNonLinear(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveNonLinearNormalized(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure
@@ -123,7 +123,7 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        solveNonLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveNonLinearNormalized(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure
@@ -151,7 +151,7 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        return solveNonLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: [noises].span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveNonLinearNormalized(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: [noises].span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure
@@ -180,7 +180,7 @@ public extension UnifiedHOPSHierarchy {
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
         let H = UniqueMatrix<Complex<Double>>(copying: H)
-        return solveNonLinear(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: [noises].span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveNonLinearNormalized(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: [noises].span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure
@@ -208,7 +208,7 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        return solveNonLinear(start: start, end: end, initialState: initialState, H: H, noises: [noises].span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveNonLinearNormalized(start: start, end: end, initialState: initialState, H: H, noises: [noises].span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
         
     }
     
@@ -243,7 +243,7 @@ public extension UnifiedHOPSHierarchy {
             initialTotalStateVector[i] = initialState[i]
         }
         let noiseShifts: [Complex<Double>] = .init(repeating: .zero, count: G.count)
-        return solveNonLinear(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, noiseShifts: noiseShifts.span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveNonLinearNormalized(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, noiseShifts: noiseShifts.span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure
@@ -363,7 +363,7 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        solveNonLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveNonLinearNormalized(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure with QSD jump operators
@@ -392,7 +392,7 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        return solveNonLinear(start: start, end: end, initialState: initialState, H: H, noises: noises, shiftType: shiftType, jumpOperators: Span(jumpOperators), customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveNonLinearNormalized(start: start, end: end, initialState: initialState, H: H, noises: noises, shiftType: shiftType, jumpOperators: Span(jumpOperators), customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure with QSD jump operators
@@ -422,7 +422,7 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        solveNonLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveNonLinearNormalized(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure with QSD jump operators
@@ -458,7 +458,7 @@ public extension UnifiedHOPSHierarchy {
             initialTotalStateVector[i] = initialState[i]
         }
         let noiseShifts: [Complex<Double>] = .init(repeating: .zero, count: G.count)
-        return solveNonLinear(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, noiseShifts: noiseShifts.span, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveNonLinearNormalized(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, noiseShifts: noiseShifts.span, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure with QSD jump operators

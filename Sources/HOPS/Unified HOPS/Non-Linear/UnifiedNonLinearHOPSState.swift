@@ -78,7 +78,7 @@ extension UnifiedHOPSHierarchy {
             let LSpan = hierarchyPointer.pointee.L.span
             let LDaggerSpan = hierarchyPointer.pointee.LDagger.span
             
-            var systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
+            let systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
             var Heff: UniqueMatrix<Complex<Double>> = .init(_unsafeElements: self.Heff.elements, rows: dimension, columns: dimension)
             var LDaggerExpectations: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.LDaggerExpectationValues.components, count: LDaggerSpan.count)
             var noiseShifts: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.noiseShifts.components, count: noises.count)
@@ -103,11 +103,12 @@ extension UnifiedHOPSHierarchy {
             Heff.zeroElements()
             H(t, &Heff)
             Heff.multiply(by: -.i)
-            
+            var scalarFactor: Complex<Double> = .zero
             for i in LSpan.indices {
                 Heff.add(LSpan[unchecked: i], multiplied: noises[unchecked: i](t).conjugate + noiseShifts[unchecked: i])
                 if shiftType == .meanField {
                     Heff.add(LDaggerSpan[unchecked: i], multiplied: -noiseShifts[unchecked: i].conjugate)
+                    scalarFactor = Relaxed.multiplyAdd(noiseShifts[unchecked: i].conjugate, LDaggerExpectations[unchecked: i], scalarFactor)
                 }
             }
             for i in 0..<customOperators.count {
@@ -122,6 +123,7 @@ extension UnifiedHOPSHierarchy {
                 let kW = kWSpan[unchecked: kWIndex]
                 for i in 0..<dimension {
                     resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
+                    resultPointer[i] = Relaxed.multiplyAdd(scalarFactor, currentStatePointer[i], resultPointer[i])
                 }
                 resultPointer += dimension
                 currentStatePointer += dimension
