@@ -90,8 +90,8 @@ extension UnifiedHOPSHierarchy {
             var noiseShifts: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.noiseShifts.components, count: noises.count)
             var scalarFactor: Complex<Double> = .zero
             
+            // The norm should be one but we divide by normSquared for numerical stability
             let normSquared = systemState.normSquared
-//            print(normSquared)
             for i in 0..<LDaggerExpectations.count {
                 LDaggerExpectations[unchecked: i] = systemState.inner(metric: LDaggerSpan[i], systemState) / normSquared
             }
@@ -99,18 +99,9 @@ extension UnifiedHOPSHierarchy {
             // Normalization factor
             for i in LDaggerSpan.indices {
                 scratchVector.zeroComponents()
-                for j in 1...3 {
-                    let auxiliaryState = UniqueVector(_unsafeComponents: state.totalStateVector.components.advanced(by: j * dimension), count: dimension)
-                    scratchVector.add(auxiliaryState)
-                    let _ = auxiliaryState.consumeComponents()
-                }
-//                normalizationPMatricesSpan[unchecked: i].dot(state.totalStateVector.components, into: scratchVector.components)
-                // AdHOPS type of correction
-                scalarFactor = Relaxed.sum(-Relaxed.product(LDaggerExpectations[unchecked: i], systemState.inner(scratchVector)).real, scalarFactor)
-                scalarFactor = Relaxed.sum(systemState.inner(metric: LDaggerSpan[unchecked: i], scratchVector).real, scalarFactor)
-                // Non-linear NMQSD type correction?
-//                scalarFactor = Relaxed.sum(-Relaxed.product(LDaggerExpectations[unchecked: i], systemState.inner(scratchVector)), scalarFactor)
-//                scalarFactor = Relaxed.sum(systemState.inner(metric: LDaggerSpan[unchecked: i], scratchVector), scalarFactor)
+                normalizationPMatricesSpan[unchecked: i].dot(state.totalStateVector.components, into: scratchVector.components)
+                scalarFactor = Relaxed.sum(systemState.inner(metric: LDaggerSpan[unchecked: i], scratchVector), scalarFactor)
+                scalarFactor = Relaxed.multiplyAdd(-LDaggerExpectations[unchecked: i], systemState.inner(scratchVector), scalarFactor)
             }
             
             // Noise shifting
@@ -130,14 +121,9 @@ extension UnifiedHOPSHierarchy {
             Heff.multiply(by: -.i)
             
             for i in LSpan.indices {
-                let z_i = noises[unchecked: i](t).conjugate
                 let z_i_shifted = Relaxed.sum(noises[unchecked: i](t).conjugate, noiseShifts[unchecked: i])
                 Heff.add(LSpan[unchecked: i], multiplied: z_i_shifted)
-                
-                // AdHOPS style correction
-                scalarFactor = Relaxed.sum(-Relaxed.product(LDaggerExpectations[unchecked: i].conjugate, z_i_shifted).real, scalarFactor)
-                // Normalized NMQS style scalar correction?
-//                scalarFactor = Relaxed.multiplyAdd(-LDaggerExpectations[unchecked: i].conjugate, z_i_shifted, scalarFactor)
+                scalarFactor = Relaxed.multiplyAdd(-LDaggerExpectations[unchecked: i].conjugate, z_i_shifted.real, scalarFactor)
                 if shiftType == .meanField {
                     Heff.add(LDaggerSpan[unchecked: i], multiplied: -noiseShifts[unchecked: i].conjugate)
                     scalarFactor = Relaxed.multiplyAdd(noiseShifts[unchecked: i].conjugate, LDaggerExpectations[unchecked: i], scalarFactor)

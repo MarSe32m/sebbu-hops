@@ -174,6 +174,7 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
         spectralDensity(omega: omega, A: A, omegaC: omegaC)
     }
+//    let zGenerator = ZeroNoiseProcessGenerator()
     let noiseGenerationStart = ContinuousClock().now
     let noises = zGenerator.generateParallel(count: realizations)
     let noiseGenerationEnd = ContinuousClock().now
@@ -242,7 +243,7 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
         }
     }
     
-    let nonLinearNormalizedTSpace = nonLinearTrajectories[0].tSpace
+    let nonLinearNormalizedTSpace = nonLinearNormalizedTrajectories[0].tSpace
     var nonLinearNormalizedRho: [Matrix<Complex<Double>>] = []
     for trajectory in nonLinearNormalizedTrajectories {
         let _rho = trajectory.densityMatrix(normalized: false)
@@ -366,7 +367,7 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
 }
 
 public func IBMFockStateAmplitudesExample(endTime: Double = 7.0) {
-    let A = 0.027
+    let A = 0.8
     let omegaC = 1.447
     
     let bcfTerms = 3
@@ -395,10 +396,18 @@ public func IBMFockStateAmplitudesExample(endTime: Double = 7.0) {
     
     let linearTrajectory = hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, noises: noise, stepSize: 0.01, includeHierarchy: true)
     let linearZeroNoiseTrajectory = hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, noises: zeroNoise, stepSize: 0.01, includeHierarchy: true)
+    
     let nonLinearTrajectory = hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: noise, stepSize: 0.01, includeHierarchy: true)
     let nonLinearZeroNoiseTrajectory = hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: zeroNoise, stepSize: 0.01, includeHierarchy: true)
+    
     let nonLinearTrajectoryShifted = hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: noise, shiftType: .meanField, stepSize: 0.01, includeHierarchy: true)
     let nonLinearZeroNoiseTrajectoryShifted = hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: zeroNoise, shiftType: .meanField, stepSize: 0.01, includeHierarchy: true)
+    
+    let nonLinearNormalizedTrajectory = hierarchy.solveNonLinearNormalized(end: endTime, initialState: initialState, H: H, noises: noise, stepSize: 0.01, includeHierarchy: true)
+    let nonLinearNormalizedZeroNoiseTrajectory = hierarchy.solveNonLinearNormalized(end: endTime, initialState: initialState, H: H, noises: zeroNoise, stepSize: 0.01, includeHierarchy: true)
+    
+    let nonLinearNormalizedShiftedTrajectory = hierarchy.solveNonLinearNormalized(end: endTime, initialState: initialState, H: H, noises: noise, shiftType: .meanField, stepSize: 0.01, includeHierarchy: true)
+    let nonLinearNormalizedShiftedZeroNoiseTrajectory = hierarchy.solveNonLinearNormalized(end: endTime, initialState: initialState, H: H, noises: zeroNoise, shiftType: .meanField, stepSize: 0.01, includeHierarchy: true)
     
     // Plot linear hiearchy occupations
     plt.figure()
@@ -534,6 +543,98 @@ public func IBMFockStateAmplitudesExample(endTime: Double = 7.0) {
     plt.xlabel("t")
     plt.ylabel("<n_mu>")
     plt.title("Non-Linear shifted <n>")
+    plt.show()
+    plt.close()
+    
+    // Plot non-linear normalized hiearchy occupations
+    plt.figure()
+    for fockStateNumber in 0...hierarchyDepth {
+        for mode in 0..<bcfTerms {
+            guard let fockStateAmplitudes = hierarchy.fockStateAmplitudes(for: nonLinearNormalizedTrajectory, mode: mode, fockState: fockStateNumber) else {
+                fatalError("Couldn't obtain fock state amplitudes")
+            }
+            guard let fockStateAmplitudesZeroNoise = hierarchy.fockStateAmplitudes(for: nonLinearNormalizedZeroNoiseTrajectory, mode: mode, fockState: fockStateNumber) else { fatalError("Couldn't obtain fock state amplitudes") }
+            plt.plot(x: nonLinearNormalizedTrajectory.tSpace, y: fockStateAmplitudes, label: "\(fockStateNumber)_\(mode + 1)")
+            _plt.plot(nonLinearNormalizedZeroNoiseTrajectory.tSpace, fockStateAmplitudesZeroNoise, color: "gray", alpha: 0.5)
+        }
+    }
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("Amplitudes")
+    plt.title("Non-Linear normalized occupations")
+    plt.show()
+    plt.close()
+    
+    plt.figure()
+    for mode in 0..<bcfTerms {
+        var meanOccupation: [Double] = .init(repeating: .zero, count: nonLinearNormalizedTrajectory.tSpace.count)
+        var meanOccupationZeroNoise: [Double] = .init(repeating: .zero, count: nonLinearNormalizedTrajectory.tSpace.count)
+        for fockStateNumber in 0...hierarchyDepth {
+            guard let fockStateAmplitudes = hierarchy.fockStateAmplitudes(for: nonLinearNormalizedTrajectory, mode: mode, fockState: fockStateNumber) else {
+                fatalError("Couldn't obtain fock state amplitudes")
+            }
+            guard let fockStateAmplitudeZeroNoise = hierarchy.fockStateAmplitudes(for: nonLinearNormalizedZeroNoiseTrajectory, mode: mode, fockState: fockStateNumber) else { fatalError("Couldn't obtain fock state amplitudes") }
+            for i in meanOccupation.indices {
+                meanOccupation[i] += Double(fockStateNumber) * fockStateAmplitudes[i]
+            }
+            for i in meanOccupationZeroNoise.indices {
+                meanOccupationZeroNoise[i] += Double(fockStateNumber) * fockStateAmplitudeZeroNoise[i]
+            }
+        }
+        plt.plot(x: nonLinearNormalizedTrajectory.tSpace, y: meanOccupation, label: "<n_\(mode + 1)>")
+        _plt.plot(nonLinearNormalizedTrajectory.tSpace, meanOccupationZeroNoise, color: "gray", alpha: 0.5)
+        
+    }
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("<n_mu>")
+    plt.title("Non-Linear normalized <n>")
+    plt.show()
+    plt.close()
+    
+    // Plot non-linear shifted hiearchy occupations
+    plt.figure()
+    for fockStateNumber in 0...hierarchyDepth {
+        for mode in 0..<bcfTerms {
+            guard let fockStateAmplitudes = hierarchy.fockStateAmplitudes(for: nonLinearNormalizedShiftedTrajectory, mode: mode, fockState: fockStateNumber) else {
+                fatalError("Couldn't obtain fock state amplitudes")
+            }
+            guard let fockStateAmplitudesZeroNoise = hierarchy.fockStateAmplitudes(for: nonLinearNormalizedShiftedZeroNoiseTrajectory, mode: mode, fockState: fockStateNumber) else { fatalError("Couldn't obtain fock state amplitudes") }
+            plt.plot(x: nonLinearNormalizedShiftedTrajectory.tSpace, y: fockStateAmplitudes, label: "\(fockStateNumber)_\(mode + 1)")
+            _plt.plot(nonLinearNormalizedShiftedZeroNoiseTrajectory.tSpace, fockStateAmplitudesZeroNoise, color: "gray", alpha: 0.5)
+        }
+    }
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("Amplitudes")
+    plt.title("Non-Linear normalized shifted occupations")
+    plt.show()
+    plt.close()
+    
+    plt.figure()
+    for mode in 0..<bcfTerms {
+        var meanOccupation: [Double] = .init(repeating: .zero, count: nonLinearNormalizedShiftedTrajectory.tSpace.count)
+        var meanOccupationZeroNoise: [Double] = .init(repeating: .zero, count: nonLinearNormalizedShiftedTrajectory.tSpace.count)
+        for fockStateNumber in 0...hierarchyDepth {
+            guard let fockStateAmplitudes = hierarchy.fockStateAmplitudes(for: nonLinearNormalizedShiftedTrajectory, mode: mode, fockState: fockStateNumber) else {
+                fatalError("Couldn't obtain fock state amplitudes")
+            }
+            guard let fockStateAmplitudeZeroNoise = hierarchy.fockStateAmplitudes(for: nonLinearNormalizedShiftedZeroNoiseTrajectory, mode: mode, fockState: fockStateNumber) else { fatalError("Couldn't obtain fock state amplitudes") }
+            for i in meanOccupation.indices {
+                meanOccupation[i] += Double(fockStateNumber) * fockStateAmplitudes[i]
+            }
+            for i in meanOccupationZeroNoise.indices {
+                meanOccupationZeroNoise[i] += Double(fockStateNumber) * fockStateAmplitudeZeroNoise[i]
+            }
+        }
+        plt.plot(x: nonLinearNormalizedShiftedTrajectory.tSpace, y: meanOccupation, label: "<n_\(mode + 1)>")
+        _plt.plot(nonLinearNormalizedShiftedZeroNoiseTrajectory.tSpace, meanOccupationZeroNoise, color: "gray", alpha: 0.5)
+        
+    }
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("<n_mu>")
+    plt.title("Non-Linear normalized shifted <n>")
     plt.show()
     plt.close()
 }

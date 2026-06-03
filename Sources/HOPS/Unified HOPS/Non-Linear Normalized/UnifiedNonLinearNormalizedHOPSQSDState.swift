@@ -43,6 +43,9 @@ extension UnifiedHOPSHierarchy {
         var noiseShifts: UniqueVector<Complex<Double>>
         
         @usableFromInline
+        var scratchVector: UniqueVector<Complex<Double>>
+        
+        @usableFromInline
         let dimension: Int
         
         @usableFromInline
@@ -76,32 +79,45 @@ extension UnifiedHOPSHierarchy {
             }
             self.noiseShifts = .zero(noises.count)
             self.shiftType = shiftType
+            self.scratchVector = .zero(dimension)
         }
         
         public mutating func drift(t: Double, y state: borrowing NonLinearNormalizedHOPSQSDState, into result: inout NonLinearNormalizedHOPSQSDState) {
             let kWSpan = hierarchyPointer.pointee.kWArray.span
             let LSpan = hierarchyPointer.pointee.L.span
             let LDaggerSpan = hierarchyPointer.pointee.LDagger.span
+            let normalizationPMatricesSpan = hierarchyPointer.pointee.normalizationPMatrices.span
             
-            var systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
+            let systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
+            var scratchVector: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.scratchVector.components, count: dimension)
             var Heff: UniqueMatrix<Complex<Double>> = .init(_unsafeElements: self.Heff.elements, rows: dimension, columns: dimension)
             var LDaggerExpectations: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.LDaggerExpectationValues.components, count: LDaggerSpan.count)
             var noiseShifts: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.noiseShifts.components, count: noises.count)
+            var scalarFactor: Complex<Double> = .zero
             
-            // Noise shifting
+            // The norm should be one but we divide by normSquared for numerical stability
             let normSquared = systemState.normSquared
             for i in 0..<LDaggerExpectations.count {
                 LDaggerExpectations[unchecked: i] = systemState.inner(metric: LDaggerSpan[i], systemState) / normSquared
             }
             
+            // Normalization factor
+            for i in LDaggerSpan.indices {
+                scratchVector.zeroComponents()
+                normalizationPMatricesSpan[unchecked: i].dot(state.totalStateVector.components, into: scratchVector.components)
+                scalarFactor = Relaxed.sum(systemState.inner(metric: LDaggerSpan[unchecked: i], scratchVector), scalarFactor)
+                scalarFactor = Relaxed.multiplyAdd(-LDaggerExpectations[unchecked: i], systemState.inner(scratchVector), scalarFactor)
+            }
+            
+            // Noise shifting
             hierarchyPointer.pointee.M.dot(LDaggerExpectations.components, into: result.shiftVector.components)
             for i in 0..<result.shiftVector.count {
                 result.shiftVector[unchecked: i] = Relaxed.multiplyAdd(WConjugateVector[unchecked: i], state.shiftVector[unchecked: i], result.shiftVector[unchecked: i])
             }
             for i in hierarchyPointer.pointee.shiftIndices.indices {
-                noiseShifts[unchecked: i] = .zero
+                noiseShifts[i] = .zero
                 for j in hierarchyPointer.pointee.shiftIndices[i] {
-                    noiseShifts[unchecked: i] = Relaxed.sum(noiseShifts[unchecked: i], state.shiftVector[unchecked: j])
+                    noiseShifts[i] = Relaxed.sum(noiseShifts[i], state.shiftVector[j])
                 }
             }
             
@@ -110,9 +126,12 @@ extension UnifiedHOPSHierarchy {
             Heff.multiply(by: -.i)
             
             for i in LSpan.indices {
-                Heff.add(LSpan[unchecked: i], multiplied: noises[unchecked: i](t).conjugate + noiseShifts[unchecked: i])
+                let z_i_shifted = Relaxed.sum(noises[unchecked: i](t).conjugate, noiseShifts[unchecked: i])
+                Heff.add(LSpan[unchecked: i], multiplied: z_i_shifted)
+                scalarFactor = Relaxed.multiplyAdd(-LDaggerExpectations[unchecked: i].conjugate, z_i_shifted.real, scalarFactor)
                 if shiftType == .meanField {
                     Heff.add(LDaggerSpan[unchecked: i], multiplied: -noiseShifts[unchecked: i].conjugate)
+                    scalarFactor = Relaxed.multiplyAdd(noiseShifts[unchecked: i].conjugate, LDaggerExpectations[unchecked: i], scalarFactor)
                 }
             }
             for i in 0..<customOperators.count {
@@ -124,6 +143,7 @@ extension UnifiedHOPSHierarchy {
                 // Shift from non-linear QSD
                 let jumpOperatorExpectation = systemState.inner(metric: jumpOperators[unchecked: i].jumpOperatorDagger, systemState) / normSquared
                 Heff.add(jumpOperators[unchecked: i].jumpOperator, multiplied: gamma * jumpOperatorExpectation)
+                fatalError("TODO: scalarFactor += gamma(t)/2 <L^daggerL> - gamma(t) <L^dagger><L>")
             }
             var resultPointer = result.totalStateVector.components
             var currentStatePointer = state.totalStateVector.components
@@ -134,6 +154,7 @@ extension UnifiedHOPSHierarchy {
                 let kW = kWSpan[unchecked: kWIndex]
                 for i in 0..<dimension {
                     resultPointer[i] = Relaxed.multiplyAdd(kW, currentStatePointer[i], resultPointer[i])
+                    resultPointer[i] = Relaxed.multiplyAdd(scalarFactor, currentStatePointer[i], resultPointer[i])
                 }
                 resultPointer += dimension
                 currentStatePointer += dimension
@@ -151,6 +172,7 @@ extension UnifiedHOPSHierarchy {
             }
             
             let _ = systemState.consumeComponents()
+            let _ = scratchVector.consumeComponents()
             let _ = Heff.consumeElements()
             let _ = LDaggerExpectations.consumeComponents()
             let _ = noiseShifts.consumeComponents()
@@ -166,6 +188,7 @@ extension UnifiedHOPSHierarchy {
                 currentStatePointer += dimension
                 index &+= dimension
             }
+            fatalError("TODO: Shift the coupling operator: L -> L - <L>")
         }
         
         public func sampleWhiteNoise(t: Double, noises: inout MutableSpan<Complex<Double>>) {

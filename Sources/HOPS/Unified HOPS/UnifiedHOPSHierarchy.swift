@@ -434,7 +434,7 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
             let column = positiveNeighbourIndex
             let (n, _, _) = kTupleComponentIndexMap[kIndex]
             for i in 0..<dimension {
-                lilMatrices[n][i, column * dimension + i] = .one
+                lilMatrices[n][i, column * dimension + i] = .sqrt(G[kIndex])
             }
         }
         return .init(capacity: lilMatrices.count) { span in
@@ -458,8 +458,7 @@ public extension UnifiedHOPSHierarchy {
         }
         var amplitudes: [Double] = []
         for (systemState, totalState) in zip(trajectory.systemTrajectory, totalTrajectory) {
-            //let normSquared = state.normSquared
-            let systemNormSquared = systemState.normSquared
+            let systemNormSquared = 1.0 //systemState.normSquared
             totalState.components.withUnsafeBufferPointer { stateBuffer in
                 var amplitude: Double = .zero
                 //TODO: Optimize this...
@@ -469,7 +468,7 @@ public extension UnifiedHOPSHierarchy {
                     amplitude += auxiliary.normSquared / systemNormSquared
                     let _ = auxiliary.consumeComponents()
                 }
-                amplitudes.append(amplitude /*/ normSquared*/)
+                amplitudes.append(amplitude)
             }
         }
         return amplitudes
