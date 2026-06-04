@@ -142,8 +142,11 @@ extension UnifiedHOPSHierarchy {
                 Heff.add(jumpOperators[unchecked: i].LDaggerL, multiplied: -0.5 * gamma)
                 // Shift from non-linear QSD
                 let jumpOperatorExpectation = systemState.inner(metric: jumpOperators[unchecked: i].jumpOperatorDagger, systemState) / normSquared
+                let jumpOpeartorDaggerJumpOperatorExpectation = systemState.inner(metric: jumpOperators[unchecked: i].LDaggerL, systemState) / normSquared
                 Heff.add(jumpOperators[unchecked: i].jumpOperator, multiplied: gamma * jumpOperatorExpectation)
-                fatalError("TODO: scalarFactor += gamma(t)/2 <L^daggerL> - gamma(t) <L^dagger><L>")
+                // C_t += gamma / 2 <L^dagger L> - gamma <L^dagger><L>
+                scalarFactor = Relaxed.multiplyAdd(Relaxed.product(0.5, gamma), jumpOpeartorDaggerJumpOperatorExpectation, scalarFactor)
+                scalarFactor = Relaxed.multiplyAdd(-gamma, jumpOperatorExpectation.lengthSquared, scalarFactor)
             }
             var resultPointer = result.totalStateVector.components
             var currentStatePointer = state.totalStateVector.components
@@ -182,13 +185,20 @@ extension UnifiedHOPSHierarchy {
             var resultPointer = result.totalStateVector.components
             var currentStatePointer = state.totalStateVector.components
             var index = 0
+            let systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
+            let normSquared = systemState.normSquared
+            let LExpectation = systemState.inner(metric: jumpOperators[unchecked: channel].jumpOperator, systemState) / normSquared
+            let _ = systemState.consumeComponents()
+            
             while index < totalDimension {
                 jumpOperators[unchecked: channel].operate(on: currentStatePointer, into: resultPointer)
+                for i in 0..<dimension {
+                    resultPointer[i] = Relaxed.multiplyAdd(-LExpectation, currentStatePointer[i], resultPointer[i])
+                }
                 resultPointer += dimension
                 currentStatePointer += dimension
                 index &+= dimension
             }
-            fatalError("TODO: Shift the coupling operator: L -> L - <L>")
         }
         
         public func sampleWhiteNoise(t: Double, noises: inout MutableSpan<Complex<Double>>) {

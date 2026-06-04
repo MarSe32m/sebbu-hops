@@ -118,6 +118,8 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     var nonLinearRho: [Matrix<Complex<Double>>] = []
     var nonLinearUnifiedTSpace: [Double] = []
     var nonLinearUnifiedRho: [Matrix<Complex<Double>>] = []
+    var nonLinearNormalizedUnifiedTSpace: [Double] = []
+    var nonLinearNormalizedUnifiedRho: [Matrix<Complex<Double>>] = []
     while trajectoriesComputed < realizations {
         let trajectoriesToCompute = Swift.min(realizations - trajectoriesComputed, batchSize)
         trajectoriesComputed += trajectoriesToCompute
@@ -163,6 +165,22 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
                 }
             }
             
+            let unifiedNonLinearNormalizedTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
+                let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(noise: w, rate: gamma, jumpOperator: sigmaMinus)
+                return unifiedHierarchy.solveNonLinearNormalized(end: endTime, initialState: _initialState, H: _H, noises: z, shiftType: .meanField, jumpOperators: jumpOperator, stepSize: 0.01)
+            }
+            for trajectory in unifiedNonLinearNormalizedTrajectories {
+                let _rho = trajectory.densityMatrix(normalized: true)
+                if nonLinearNormalizedUnifiedRho.isEmpty {
+                    nonLinearNormalizedUnifiedTSpace = trajectory.tSpace
+                    nonLinearNormalizedUnifiedRho = _rho.map { $0 / Double(realizations) }
+                } else {
+                    for i in 0..<_rho.count {
+                        nonLinearNormalizedUnifiedRho[i].add(_rho[i], multiplied: 1.0 / Double(realizations))
+                    }
+                }
+            }
+            
         }
         print("[Non-linear]: \(batchComputationTime * Double(realizations - trajectoriesComputed) / Double(batchSize))")
     }
@@ -188,6 +206,10 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     let nonLinearUnifiedY = nonLinearUnifiedRho.map { 2 * $0[0, 1].imaginary }
     let nonLinearUnifiedZ = nonLinearUnifiedRho.map { $0[0, 0].real - $0[1, 1].real }
     
+    let nonLinearNormalizedUnifiedX = nonLinearNormalizedUnifiedRho.map { 2 * $0[0, 1].real }
+    let nonLinearNormalizedUnifiedY = nonLinearNormalizedUnifiedRho.map { 2 * $0[0, 1].imaginary }
+    let nonLinearNormalizedUnifiedZ = nonLinearNormalizedUnifiedRho.map { $0[0, 0].real - $0[1, 1].real }
+    
     let masterEquationX = rho.map { 2 * $0[0, 1].real }
     let masterEquationY = rho.map { 2 * $0[0, 1].imaginary }
     let masterEquationZ = rho.map { $0[0, 0].real - $0[1, 1].real }
@@ -205,9 +227,14 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
 //    plt.plot(x: nonLinearTSpace, y: nonLinearY, label: "Non-lin <y>")
 //    plt.plot(x: nonLinearTSpace, y: nonLinearZ, label: "Non-lin <z>")
     
-    plt.plot(x: nonLinearUnifiedTSpace, y: nonLinearUnifiedX, label: "Non-lin uni <x>", linestyle: "--")
-    plt.plot(x: nonLinearUnifiedTSpace, y: nonLinearUnifiedY, label: "Non-lin uni <y>", linestyle: "--")
-    plt.plot(x: nonLinearUnifiedTSpace, y: nonLinearUnifiedZ, label: "Non-lin uni <z>", linestyle: "--")
+    plt.plot(x: nonLinearUnifiedTSpace, y: nonLinearUnifiedX, label: "Non-lin uni <x>", linestyle: "-")
+    plt.plot(x: nonLinearUnifiedTSpace, y: nonLinearUnifiedY, label: "Non-lin uni <y>", linestyle: "-")
+    plt.plot(x: nonLinearUnifiedTSpace, y: nonLinearUnifiedZ, label: "Non-lin uni <z>", linestyle: "-")
+    
+    
+    plt.plot(x: nonLinearNormalizedUnifiedTSpace, y: nonLinearNormalizedUnifiedX, label: "Non-lin norm uni <x>", linestyle: "--")
+    plt.plot(x: nonLinearNormalizedUnifiedTSpace, y: nonLinearNormalizedUnifiedY, label: "Non-lin norm uni <y>", linestyle: "--")
+    plt.plot(x: nonLinearNormalizedUnifiedTSpace, y: nonLinearNormalizedUnifiedZ, label: "Non-lin norm uni <z>", linestyle: "--")
     
     plt.plot(x: masterEquationTSpace, y: masterEquationX, label: "Master Eq. <x>", linestyle: "-.")
     plt.plot(x: masterEquationTSpace, y: masterEquationY, label: "Master Eq. <y>", linestyle: "-.")
