@@ -457,7 +457,7 @@ public extension UnifiedHOPSHierarchy {
             }
         }
         var amplitudes: [Double] = []
-        for (systemState, totalState) in zip(trajectory.systemTrajectory, totalTrajectory) {
+        for (_/*systemState*/, totalState) in zip(trajectory.systemTrajectory, totalTrajectory) {
             let systemNormSquared = 1.0 //systemState.normSquared
             totalState.components.withUnsafeBufferPointer { stateBuffer in
                 var amplitude: Double = .zero
@@ -658,14 +658,6 @@ public extension UnifiedHOPSHierarchy {
         @inline(always)
         internal func operate(on state: UnsafePointer<Complex<Double>>, into: UnsafeMutablePointer<Complex<Double>>) {
             jumpOperator.unsafeDot(state, into: into)
-        }
-        
-        @inlinable
-        @inline(always)
-        internal func operateNonLinearNormalized(on state: borrowing UniqueVector<Complex<Double>>, into: inout UniqueVector<Complex<Double>>) {
-            fatalError("TODO: Implement")
-//            jumpOperator.dot(state, into: &into)
-//            into.add(state, multiplied: 1)
         }
     }
 }

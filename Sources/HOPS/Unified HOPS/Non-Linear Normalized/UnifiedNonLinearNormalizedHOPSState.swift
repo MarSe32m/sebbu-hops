@@ -84,7 +84,7 @@ extension UnifiedHOPSHierarchy {
             let normalizationPMatricesSpan = hierarchyPointer.pointee.normalizationPMatrices.span
             
             let systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
-            var scratchVector: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.scratchVector.components, count: dimension)
+            let scratchVector: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.scratchVector.components, count: dimension)
             var Heff: UniqueMatrix<Complex<Double>> = .init(_unsafeElements: self.Heff.elements, rows: dimension, columns: dimension)
             var LDaggerExpectations: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.LDaggerExpectationValues.components, count: LDaggerSpan.count)
             var noiseShifts: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.noiseShifts.components, count: noises.count)
@@ -98,7 +98,6 @@ extension UnifiedHOPSHierarchy {
             
             // Normalization factor
             for i in LDaggerSpan.indices {
-                scratchVector.zeroComponents()
                 normalizationPMatricesSpan[unchecked: i].dot(state.totalStateVector.components, into: scratchVector.components)
                 scalarFactor = Relaxed.sum(systemState.inner(metric: LDaggerSpan[unchecked: i], scratchVector), scalarFactor)
                 scalarFactor = Relaxed.multiplyAdd(-LDaggerExpectations[unchecked: i], systemState.inner(scratchVector), scalarFactor)
@@ -123,7 +122,7 @@ extension UnifiedHOPSHierarchy {
             for i in LSpan.indices {
                 let z_i_shifted = Relaxed.sum(noises[unchecked: i](t).conjugate, noiseShifts[unchecked: i])
                 Heff.add(LSpan[unchecked: i], multiplied: z_i_shifted)
-                scalarFactor = Relaxed.multiplyAdd(-LDaggerExpectations[unchecked: i].conjugate, z_i_shifted.real, scalarFactor)
+                scalarFactor = Relaxed.multiplyAdd(-LDaggerExpectations[unchecked: i].conjugate, z_i_shifted, scalarFactor)
                 if shiftType == .meanField {
                     Heff.add(LDaggerSpan[unchecked: i], multiplied: -noiseShifts[unchecked: i].conjugate)
                     scalarFactor = Relaxed.multiplyAdd(noiseShifts[unchecked: i].conjugate, LDaggerExpectations[unchecked: i], scalarFactor)

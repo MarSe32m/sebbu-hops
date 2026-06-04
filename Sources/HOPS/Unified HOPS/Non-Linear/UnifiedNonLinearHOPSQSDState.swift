@@ -83,7 +83,7 @@ extension UnifiedHOPSHierarchy {
             let LSpan = hierarchyPointer.pointee.L.span
             let LDaggerSpan = hierarchyPointer.pointee.LDagger.span
             
-            var systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
+            let systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
             var Heff: UniqueMatrix<Complex<Double>> = .init(_unsafeElements: self.Heff.elements, rows: dimension, columns: dimension)
             var LDaggerExpectations: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.LDaggerExpectationValues.components, count: LDaggerSpan.count)
             var noiseShifts: UniqueVector<Complex<Double>> = .init(_unsafeComponents: self.noiseShifts.components, count: noises.count)
@@ -169,6 +169,7 @@ extension UnifiedHOPSHierarchy {
                 currentStatePointer += dimension
                 index &+= dimension
             }
+            result.shiftVector.zeroComponents()
         }
         
         public func sampleWhiteNoise(t: Double, noises: inout MutableSpan<Complex<Double>>) {

@@ -103,7 +103,6 @@ extension UnifiedHOPSHierarchy {
             
             // Normalization factor
             for i in LDaggerSpan.indices {
-                scratchVector.zeroComponents()
                 normalizationPMatricesSpan[unchecked: i].dot(state.totalStateVector.components, into: scratchVector.components)
                 scalarFactor = Relaxed.sum(systemState.inner(metric: LDaggerSpan[unchecked: i], scratchVector), scalarFactor)
                 scalarFactor = Relaxed.multiplyAdd(-LDaggerExpectations[unchecked: i], systemState.inner(scratchVector), scalarFactor)
@@ -128,7 +127,7 @@ extension UnifiedHOPSHierarchy {
             for i in LSpan.indices {
                 let z_i_shifted = Relaxed.sum(noises[unchecked: i](t).conjugate, noiseShifts[unchecked: i])
                 Heff.add(LSpan[unchecked: i], multiplied: z_i_shifted)
-                scalarFactor = Relaxed.multiplyAdd(-LDaggerExpectations[unchecked: i].conjugate, z_i_shifted.real, scalarFactor)
+                scalarFactor = Relaxed.multiplyAdd(-LDaggerExpectations[unchecked: i].conjugate, z_i_shifted, scalarFactor)
                 if shiftType == .meanField {
                     Heff.add(LDaggerSpan[unchecked: i], multiplied: -noiseShifts[unchecked: i].conjugate)
                     scalarFactor = Relaxed.multiplyAdd(noiseShifts[unchecked: i].conjugate, LDaggerExpectations[unchecked: i], scalarFactor)
@@ -141,12 +140,12 @@ extension UnifiedHOPSHierarchy {
                 let gamma = jumpOperators[unchecked: i].rate(t)
                 Heff.add(jumpOperators[unchecked: i].LDaggerL, multiplied: -0.5 * gamma)
                 // Shift from non-linear QSD
-                let jumpOperatorExpectation = systemState.inner(metric: jumpOperators[unchecked: i].jumpOperatorDagger, systemState) / normSquared
-                let jumpOpeartorDaggerJumpOperatorExpectation = systemState.inner(metric: jumpOperators[unchecked: i].LDaggerL, systemState) / normSquared
-                Heff.add(jumpOperators[unchecked: i].jumpOperator, multiplied: gamma * jumpOperatorExpectation)
+                let jumpOperatorDaggerExpectation = systemState.inner(metric: jumpOperators[unchecked: i].jumpOperatorDagger, systemState) / normSquared
+                let jumpOperatorDaggerJumpOperatorExpectation = systemState.inner(metric: jumpOperators[unchecked: i].LDaggerL, systemState) / normSquared
+                Heff.add(jumpOperators[unchecked: i].jumpOperator, multiplied: gamma * jumpOperatorDaggerExpectation)
                 // C_t += gamma / 2 <L^dagger L> - gamma <L^dagger><L>
-                scalarFactor = Relaxed.multiplyAdd(Relaxed.product(0.5, gamma), jumpOpeartorDaggerJumpOperatorExpectation, scalarFactor)
-                scalarFactor = Relaxed.multiplyAdd(-gamma, jumpOperatorExpectation.lengthSquared, scalarFactor)
+                scalarFactor = Relaxed.multiplyAdd(Relaxed.product(0.5, gamma), jumpOperatorDaggerJumpOperatorExpectation, scalarFactor)
+                scalarFactor = Relaxed.multiplyAdd(-gamma, jumpOperatorDaggerExpectation.lengthSquared, scalarFactor)
             }
             var resultPointer = result.totalStateVector.components
             var currentStatePointer = state.totalStateVector.components
@@ -199,6 +198,7 @@ extension UnifiedHOPSHierarchy {
                 currentStatePointer += dimension
                 index &+= dimension
             }
+            result.shiftVector.zeroComponents()
         }
         
         public func sampleWhiteNoise(t: Double, noises: inout MutableSpan<Complex<Double>>) {

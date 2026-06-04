@@ -31,12 +31,13 @@ public extension UnifiedHOPSHierarchy {
         initialState: Vector<Complex<Double>>,
         H: Matrix<Complex<Double>>,
         noises: consuming Span<Noise>,
+        shiftType: ShiftType = .none,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
         let H: UniqueMatrix<Complex<Double>> = .init(copying: H)
-        return solveLinear(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: noises, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveLinear(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy structure
@@ -58,12 +59,13 @@ public extension UnifiedHOPSHierarchy {
         initialState: borrowing UniqueVector<Complex<Double>>,
         H: Matrix<Complex<Double>>,
         noises: consuming Span<Noise>,
+        shiftType: ShiftType = .none,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
         let H: UniqueMatrix<Complex<Double>> = .init(copying: H)
-        return solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy structure
@@ -85,11 +87,12 @@ public extension UnifiedHOPSHierarchy {
         initialState: Vector<Complex<Double>>,
         H: borrowing UniqueMatrix<Complex<Double>>,
         noises: consuming Span<Noise>,
+        shiftType: ShiftType = .none,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        solveLinear(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: noises, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveLinear(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy structure
@@ -111,11 +114,12 @@ public extension UnifiedHOPSHierarchy {
         initialState: borrowing UniqueVector<Complex<Double>>,
         H: borrowing UniqueMatrix<Complex<Double>>,
         noises: consuming Span<Noise>,
+        shiftType: ShiftType = .none,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy structure
@@ -137,11 +141,12 @@ public extension UnifiedHOPSHierarchy {
         initialState: borrowing UniqueVector<Complex<Double>>,
         H: borrowing UniqueMatrix<Complex<Double>>,
         noises: Noise,
+        shiftType: ShiftType = .none,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        return solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: [noises].span, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: [noises].span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy structure
@@ -163,12 +168,13 @@ public extension UnifiedHOPSHierarchy {
         initialState: Vector<Complex<Double>>,
         H: Matrix<Complex<Double>>,
         noises: Noise,
+        shiftType: ShiftType = .none,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
         let H = UniqueMatrix<Complex<Double>>(copying: H)
-        return solveLinear(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: [noises].span, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveLinear(start: start, end: end, initialState: .init(copying: initialState), H: { _, Heff in Heff.add(H) }, noises: [noises].span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy structure
@@ -190,11 +196,12 @@ public extension UnifiedHOPSHierarchy {
         initialState: borrowing UniqueVector<Complex<Double>>,
         H: (Double, inout UniqueMatrix<Complex<Double>>) -> Void,
         noises: Noise,
+        shiftType: ShiftType = .none,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        return solveLinear(start: start, end: end, initialState: initialState, H: H, noises: [noises].span, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveLinear(start: start, end: end, initialState: initialState, H: H, noises: [noises].span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
         
     }
     
@@ -216,6 +223,7 @@ public extension UnifiedHOPSHierarchy {
         initialState: borrowing UniqueVector<Complex<Double>>,
         H: (Double, inout UniqueMatrix<Complex<Double>>) -> Void,
         noises: consuming Span<Noise>,
+        shiftType: ShiftType = .none,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
@@ -226,7 +234,8 @@ public extension UnifiedHOPSHierarchy {
         for i in 0..<dimension {
             initialTotalStateVector[i] = initialState[i]
         }
-        return solveLinear(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        let noiseShifts: [Complex<Double>] = .init(repeating: .zero, count: G.count)
+        return solveLinear(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, noiseShifts: noiseShifts.span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy structure
@@ -247,6 +256,8 @@ public extension UnifiedHOPSHierarchy {
         initialTotalState: borrowing UniqueVector<Complex<Double>>,
         H: (Double, inout UniqueMatrix<Complex<Double>>) -> Void,
         noises: consuming Span<Noise>,
+        noiseShifts: borrowing Span<Complex<Double>>,
+        shiftType: ShiftType = .none,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
@@ -256,14 +267,14 @@ public extension UnifiedHOPSHierarchy {
             precondition(initialTotalState.count == totalDimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial total state (including hierarchy)")
             let initialState: UniqueVector<Complex<Double>> = .init(copying: initialTotalState, count: dimension)
             return withUnsafePointer(to: self) { hierarchy in
-                let rhs = LinearHOPSStateFunc(hierarchy: hierarchy, H: H, noises: noises, customOperators: customOperators)
+                let rhs = LinearHOPSStateFunc(hierarchy: hierarchy, H: H, noises: noises, shiftType: shiftType, customOperators: customOperators)
                 let k1 = rhs.zero()
                 let k2 = rhs.zero()
                 let k3 = rhs.zero()
                 let k4 = rhs.zero()
                 let temporary = rhs.zero()
                 var solver = UniqueRK4Solver(t: start, dt: stepSize, rhs: rhs, k1: k1, k2: k2, k3: k3, k4: k4, temporary: temporary)
-                var state = LinearHOPSState(totalStateVector: initialTotalState)
+                var state = LinearHOPSState(totalStateVector: initialTotalState, initialShifts: noiseShifts)
                 var tSpace: [Double] = [0.0]
                 var systemTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialState)]
                 var totalTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialTotalState)]
@@ -306,12 +317,13 @@ public extension UnifiedHOPSHierarchy {
         initialState: borrowing UniqueVector<Complex<Double>>,
         H: borrowing UniqueMatrix<Complex<Double>>,
         noises: Noise,
+        shiftType: ShiftType = .none,
         jumpOperators: consuming JumpOperator<WhiteNoise>,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: [noises].span, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: [noises].span, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy with QSD terms
@@ -334,12 +346,13 @@ public extension UnifiedHOPSHierarchy {
         initialState: borrowing UniqueVector<Complex<Double>>,
         H: borrowing UniqueMatrix<Complex<Double>>,
         noises: consuming Span<Noise>,
+        shiftType: ShiftType = .none,
         jumpOperators: consuming JumpOperator<WhiteNoise>,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy with QSD terms
@@ -361,12 +374,13 @@ public extension UnifiedHOPSHierarchy {
         initialState: borrowing UniqueVector<Complex<Double>>,
         H: (Double, inout UniqueMatrix<Complex<Double>>) -> Void,
         noises: consuming Span<Noise>,
+        shiftType: ShiftType = .none,
         jumpOperators: consuming JumpOperator<WhiteNoise>,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        solveLinear(start: start, end: end, initialState: initialState, H: H, noises: noises, jumpOperators: Span(jumpOperators), customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveLinear(start: start, end: end, initialState: initialState, H: H, noises: noises, shiftType: shiftType, jumpOperators: Span(jumpOperators), customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy with QSD terms
@@ -389,12 +403,13 @@ public extension UnifiedHOPSHierarchy {
         initialState: borrowing UniqueVector<Complex<Double>>,
         H: borrowing UniqueMatrix<Complex<Double>>,
         noises: consuming Span<Noise>,
+        shiftType: ShiftType = .none,
         jumpOperators: consuming Span<JumpOperator<WhiteNoise>>,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy with QSD terms
@@ -416,6 +431,7 @@ public extension UnifiedHOPSHierarchy {
         initialState: borrowing UniqueVector<Complex<Double>>,
         H: (Double, inout UniqueMatrix<Complex<Double>>) -> Void,
         noises: consuming Span<Noise>,
+        shiftType: ShiftType = .none,
         jumpOperators: consuming Span<JumpOperator<WhiteNoise>>,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
@@ -427,7 +443,8 @@ public extension UnifiedHOPSHierarchy {
         for i in 0..<dimension {
             initialTotalStateVector[i] = initialState[i]
         }
-        return solveLinear(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        let noiseShifts: [Complex<Double>] = .init(repeating: .zero, count: G.count)
+        return solveLinear(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, noiseShifts: noiseShifts.span, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy with QSD terms
@@ -449,6 +466,8 @@ public extension UnifiedHOPSHierarchy {
         initialTotalState: borrowing UniqueVector<Complex<Double>>,
         H: (Double, inout UniqueMatrix<Complex<Double>>) -> Void,
         noises: consuming Span<Noise>,
+        noiseShifts: borrowing Span<Complex<Double>>,
+        shiftType: ShiftType = .none,
         jumpOperators: consuming Span<JumpOperator<WhiteNoise>>,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
@@ -457,19 +476,20 @@ public extension UnifiedHOPSHierarchy {
         withoutActuallyEscaping(H) { H in
             precondition(noises.count == L.count, "There must be equal amount of noises as there are coupling operators")
             precondition(initialTotalState.count == totalDimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial total state")
+            precondition(noiseShifts.count == G.count, "The number of noise shifts must equal the number of exponential terms")
             let initialState: UniqueVector<Complex<Double>> = .init(copying: initialTotalState, count: dimension)
             return withUnsafePointer(to: self) { hierarchy in
                 let noiseScratch: UnsafeMutableBufferPointer<Complex<Double>> = .allocate(capacity: jumpOperators.count)
                 defer { noiseScratch.deallocate() }
                 let noiseSpan = noiseScratch.mutableSpan
-                let rhs = LinearHOPSQSDStateFunc(hierarchy: hierarchy, H: H, noises: noises, customOperators: customOperators, jumpOperators: jumpOperators)
+                let rhs = LinearHOPSQSDStateFunc(hierarchy: hierarchy, H: H, noises: noises, shiftType: shiftType, customOperators: customOperators, jumpOperators: jumpOperators)
                 let drift0 = rhs.zero()
                 let drift1 = rhs.zero()
                 let noise0 = rhs.zero()
                 let noise1 = rhs.zero()
                 let temporary = rhs.zero()
                 var solver = UniqueSRK2Solver(t: start, dt: stepSize, rhs: rhs, drift0: drift0, drift1: drift1, noise0: noise0, noise1: noise1, temporary: temporary, noises: noiseSpan)
-                var state = LinearHOPSQSDState(totalStateVector: initialTotalState)
+                var state = LinearHOPSQSDState(totalStateVector: initialTotalState, initialShifts: noiseShifts)
                 
                 var tSpace: [Double] = [0.0]
                 var systemTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialState)]

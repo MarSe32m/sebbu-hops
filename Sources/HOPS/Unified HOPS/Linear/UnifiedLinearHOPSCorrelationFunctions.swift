@@ -228,7 +228,8 @@ public extension UnifiedHOPSHierarchy {
         for i in 0..<dimension {
             initialTotalStateVector[i] = initialState[i]
         }
-        return solveLinear(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        let noiseShifts: [Complex<Double>] = .init(repeating: .zero, count: G.count)
+        return solveLinear(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, noiseShifts: noiseShifts.span, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy structure
@@ -258,14 +259,14 @@ public extension UnifiedHOPSHierarchy {
             precondition(initialTotalState.count == totalDimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial total state (including hierarchy)")
             let initialState: UniqueVector<Complex<Double>> = .init(copying: initialTotalState, count: dimension)
             return withUnsafePointer(to: self) { hierarchy in
-                let rhs = LinearHOPSStateFunc(hierarchy: hierarchy, H: H, noises: noises, customOperators: customOperators)
+                let rhs = LinearHOPSStateFunc(hierarchy: hierarchy, H: H, noises: noises, shiftType: .none, customOperators: customOperators)
                 let k1 = rhs.zero()
                 let k2 = rhs.zero()
                 let k3 = rhs.zero()
                 let k4 = rhs.zero()
                 let temporary = rhs.zero()
                 var solver = UniqueRK4Solver(t: start, dt: stepSize, rhs: rhs, k1: k1, k2: k2, k3: k3, k4: k4, temporary: temporary)
-                var state = LinearHOPSState(totalStateVector: initialTotalState)
+                var state = LinearHOPSState(totalStateVector: initialTotalState, shiftDimension: hierarchy.pointee.G.count)
                 var tSpace: [Double] = [0.0]
                 var systemTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialState)]
                 var totalTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialTotalState)]
@@ -429,7 +430,8 @@ public extension UnifiedHOPSHierarchy {
         for i in 0..<dimension {
             initialTotalStateVector[i] = initialState[i]
         }
-        return solveLinear(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        let noiseShifts: [Complex<Double>] = .init(repeating: .zero, count: G.count)
+        return solveLinear(start: start, end: end, initialTotalState: initialTotalStateVector, H: H, noises: noises, noiseShifts: noiseShifts.span, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy with QSD terms
@@ -464,14 +466,14 @@ public extension UnifiedHOPSHierarchy {
                 let noiseScratch: UnsafeMutableBufferPointer<Complex<Double>> = .allocate(capacity: jumpOperators.count)
                 defer { noiseScratch.deallocate() }
                 let noiseSpan = noiseScratch.mutableSpan
-                let rhs = LinearHOPSQSDStateFunc(hierarchy: hierarchy, H: H, noises: noises, customOperators: customOperators, jumpOperators: jumpOperators)
+                let rhs = LinearHOPSQSDStateFunc(hierarchy: hierarchy, H: H, noises: noises, shiftType: .none, customOperators: customOperators, jumpOperators: jumpOperators)
                 let drift0 = rhs.zero()
                 let drift1 = rhs.zero()
                 let noise0 = rhs.zero()
                 let noise1 = rhs.zero()
                 let temporary = rhs.zero()
                 var solver = UniqueSRK2Solver(t: start, dt: stepSize, rhs: rhs, drift0: drift0, drift1: drift1, noise0: noise0, noise1: noise1, temporary: temporary, noises: noiseSpan)
-                var state = LinearHOPSQSDState(totalStateVector: initialTotalState)
+                var state = LinearHOPSQSDState(totalStateVector: initialTotalState, shiftDimension: hierarchy.pointee.G.count)
                 
                 var tSpace: [Double] = [0.0]
                 var systemTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialState)]
