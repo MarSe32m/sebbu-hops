@@ -52,7 +52,16 @@ public enum MatrixPencil {
 
         // Reduced pencil matrix to obtain eigenvalues -> exponents W
         let _V = Uk.dot(Y1).dot(Vk)
-        let A = try! MatrixOperations.solve(A: Sk, B: _V)
+        //let A = try! MatrixOperations.solve(A: Sk, B: _V)
+        let A = Matrix<Complex<Double>>(rows: _V.rows, columns: _V.columns) { buffer in
+            var index = 0
+            for i in 0..<_V.rows {
+                for j in 0..<_V.columns {
+                    buffer[index] = _V[i, j] / Sk[i, i]
+                    index += 1
+                }
+            }
+        }
 
         let eigenvalues = try! MatrixOperations.eigenValues(A)
         let W = eigenvalues.map {-Complex.log($0) / dt}
@@ -67,5 +76,16 @@ public enum MatrixPencil {
         let yVec = Vector(y)
         let (G, _) = try! Optimize.linearLeastSquares(A: vandermond, yVec)
         return (G.components, W)
+    }
+    
+    /// Fits the requested amount of terms to the given real function such that y(x) \approx \sum_i G_i e^{-W_i x}
+    /// - Parameters:
+    ///   - y: The samples of the function
+    ///   - dt: Spacing of the evenly spaces samples
+    ///   - terms: The number of exponentials to use in the exponential series fitting
+    /// - Returns: Array of (G, W) pairs, where G are the coefficients/amplitudes of the exponential series and W are the exponents
+    @inlinable
+    public static func fit(y: [Double], dt: Double, pencilParameter: Int? = nil, terms: Int? = nil) -> (G: [Complex<Double>], W: [Complex<Double>]) {
+        fit(y: y.map { Complex($0) }, dt: dt, pencilParameter: pencilParameter, terms: terms)
     }
 }
