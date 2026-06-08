@@ -13,20 +13,34 @@ public struct PreSampledOrnsteinUhlenbeckProcess: ComplexNoiseProcess, Sendable 
     internal let interpolator: LinearInterpolator<Complex<Double>>
     
     @inlinable
-    public init(G: Double, W: Complex<Double>, t: [Double], seed: UInt32 = .random(in: .min ... .max)) {
+    public init(G: [Double], W: [Complex<Double>], t: [Double], seed: UInt32 = .random(in: .min ... .max)) {
+        precondition(G.count == W.count, "The count of G and W must be equal.")
         var random = NumPyRandom(seed: seed)
-        let randomNumbers: [Complex<Double>] = random.nextNormal(count: t.count, stdev: .sqrt(0.5))
-        var x = .sqrt(G) * randomNumbers[0]
-        var samples: [Complex<Double>] = [x]
-        samples.reserveCapacity(t.count)
-        let dt = t[1] - t[0]
-        let r: Complex<Double> = .exp(-dt * W)
-        let B: Double = .sqrt(G * (1 - r.lengthSquared))
-        for i in 1..<t.count {
-            x = r * x + B * randomNumbers[i]
-            samples.append(x)
+        var samples: [Complex<Double>] = .init(repeating: .zero, count: t.count)
+        for(g, w) in zip(G, W) {
+            precondition(g > 0, "The coefficients must be positive.")
+            let randomNumbers: [Complex<Double>] = random.nextNormal(count: t.count, stdev: .sqrt(0.5))
+            var x = .sqrt(g) * randomNumbers[0]
+            samples[0] += x
+            let dt = t[1] - t[0]
+            let r: Complex<Double> = .exp(-dt * w)
+            let B: Double = .sqrt(g * (1 - r.lengthSquared))
+            for i in 1..<t.count {
+                x = r * x + B * randomNumbers[i]
+                samples[i] += x
+            }
         }
         self.interpolator = LinearInterpolator(x: t, y: samples)
+    }
+    
+    @inlinable
+    public init(G: [Double], W: [Complex<Double>], start: Double, end: Double, dt: Double, seed: UInt32 = .random(in: .min ... .max)) {
+        self.init(G: G, W: W, t: .linearSpace(start, end, dt), seed: seed)
+    }
+    
+    @inlinable
+    public init(G: Double, W: Complex<Double>, t: [Double], seed: UInt32 = .random(in: .min ... .max)) {
+        self.init(G: [G], W: [W], t: t, seed: seed)
     }
     
     @inlinable
@@ -59,16 +73,21 @@ public struct PreSampledOrnsteinUhlenbeckProcess: ComplexNoiseProcess, Sendable 
 
 public struct PreSampledOrnsteinUhlenbeckProcessGenerator: NoiseProcessGenerator, Sendable {
     @usableFromInline
-    internal let G: Double
+    internal let G: [Double]
     
     @usableFromInline
-    internal let W: Complex<Double>
+    internal let W: [Complex<Double>]
     
     @usableFromInline
     internal let t: [Double]
     
     @inlinable
     public init(G: Double, W: Complex<Double>, t: [Double]) {
+        self.init(G: [G], W: [W], t: t)
+    }
+    
+    @inlinable
+    public init(G: [Double], W: [Complex<Double>], t: [Double]) {
         self.G = G
         self.W = W
         self.t = t
