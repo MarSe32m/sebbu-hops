@@ -25,8 +25,8 @@ public struct PreSampledOrnsteinUhlenbeckProcess: ComplexNoiseProcess, Sendable 
             samples[0] += x
             let dt = t[1] - t[0]
             let r: Complex<Double> = .exp(-dt * w)
-            //TODO: Use .oneMinusExpMinus for B like in the correlated case
-            let B: Double = .sqrt(g * (1 - r.lengthSquared))
+            let exponent: Double = dt * 2 * w.real
+            let B: Double = .sqrt(g * .oneMinusExpMinus(exponent))
             for i in 1..<t.count {
                 x = r * x + B * randomNumbers[i]
                 samples[i] += x

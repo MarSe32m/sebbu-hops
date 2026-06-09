@@ -19,9 +19,9 @@ PythonLibrary.useLibrary(at: "/usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0")
 
 
 
+ornsteinUhlenbeckExample2()
 IBMFockStateAmplitudesExample(endTime: 1000)
 testBCFFittings()
-//ornsteinUhlenbeckExample2()
 ornsteinUhlenbeckExample3()
 drivenDissipativeCavityMode(endTime: 50, omegaX: 2.5, g: 0.05, omegaC: 2.5, gammaMinus: 0.2, gammaPlus: 0.0)
 //radiativeDampingExample(realizations: 100, endTime: 100)
