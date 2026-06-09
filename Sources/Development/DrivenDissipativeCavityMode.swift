@@ -239,8 +239,8 @@ private func solveModelWithUnifiedHOPS(endTime: Double, omegaX: Double, g: Doubl
 //        G / .pi * (1.0 / (W - Complex(imaginary: omega))).real
 //    }
     
-    let vaccuumNoiseGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G1, W: W1, t: .linearSpace(0, endTime, 0.01))
-    let temperatureGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G2, W: W2, t: .linearSpace(0, endTime, 0.01))
+    let vaccuumNoiseGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G1, W: W1, start: 0, end: endTime, dt: 0.01)
+    let temperatureGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G2, W: W2, start: 0, end: endTime, dt: 0.01)
 //    let temperatureGenerator = ZeroNoiseProcessGenerator()
     
     let sigmaMinus = Matrix<Complex<Double>>(elements: [.zero, .one, .zero, .zero], rows: 2, columns: 2)
@@ -281,7 +281,7 @@ private func solveModelWithUnifiedHOPS(endTime: Double, omegaX: Double, g: Doubl
 //                return O
 //            }
             //return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: [z1, z2], shiftType: .meanField, stepSize: 0.01)
-            return hierarchy.solveNonLinear(end: endTime, initialState: .init(copying: initialState), H: .init(copying: H), noises: [z1, z2].span, shiftType: .none, stepSize: 0.01)
+            return hierarchy.solveNonLinear(end: endTime, initialState: .init(copying: initialState), H: .init(copying: H), noises: [z1, z2].span, shiftType: .meanField, stepSize: 0.01)
 //            return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: [z1, z2], stepSize: 0.01)
 //            return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, shiftType: .meanField, customOperators: [customOperator], stepSize: 0.075)
         }

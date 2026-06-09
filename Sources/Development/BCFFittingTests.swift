@@ -62,10 +62,12 @@ fileprivate func testPhysicalBCF() {
         return 0.027 * omega * omega * omega * .exp(-omega * omega / (1.447 * 1.447))
     }
     
+    var random = NumPyRandom()
+    let fluctuations = 0.001
     let bcf = t.map { ____bathCorrelationFunction(t: $0) { omega in
         let omega = omega.magnitude
         return 0.027 * omega * omega * omega * .exp(-omega * omega / (1.447 * 1.447))
-    }}
+    }}.map { $0 + Complex(random.nextNormal(), random.nextNormal()) * fluctuations }
     let terms = 3
     let (G1, W1) = MatrixPencil.fit2(y: bcf, dt: t[1] - t[0], terms: terms)
     let (G2, W2, r) = NonLinearFit.fitPhysical(t: t, y: bcf, terms: terms)
@@ -93,6 +95,7 @@ fileprivate func testPhysicalBCF() {
     plt.show()
     plt.close()
     
+    let bcfSpline = CubicHermiteSpline(x: t, y: bcf)
     let matrixPencilBCFSpline = CubicHermiteSpline(x: t, y: matrixPencilBcf)
     let nonLinearBCFSpline = CubicHermiteSpline(x: t, y: nonLinearBcf)
     
@@ -108,8 +111,15 @@ fileprivate func testPhysicalBCF() {
         }
     }
     
+    let JSampled = w.map { omega in
+        Quad.integrate(a: 0, b: t.last!) { t in
+            bcfSpline.sample(t) * .init(length: 1.0 / (.pi), phase: omega * t)
+        }
+    }
+    
     plt.figure()
     plt.plot(x: w, y: J, label: "Exact")
+    plt.plot(x: w, y: JSampled.real, label: "Sampled")
     plt.plot(x: w, y: JMatrixPencil.real, label: "MP")
     plt.plot(x: w, y: JNonLinear.real, label: "JNonLinear")
     plt.legend()

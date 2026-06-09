@@ -392,7 +392,7 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
 }
 
 public func IBMFockStateAmplitudesExample(endTime: Double = 7.0) {
-    let A = 0.25
+    let A = 0.025
     let omegaC = 1.447
     
     let bcfTerms = 3
@@ -407,8 +407,7 @@ public func IBMFockStateAmplitudesExample(endTime: Double = 7.0) {
             bathCorrelationFunction(A: A, omegaC: omegaC, t: t)
         }
     }()
-    print(BCF)
-    let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
+    let L: Matrix<Complex<Double>> = .init(elements: [.zero, .one, .zero, .one], rows: 2, columns: 2)
     let hierarchy = UnifiedHOPSHierarchy(dimension: 2, L: L, bathCorrelationFunctions: BCF, depth: hierarchyDepth)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, Complex(renormalizationEnergy)], rows: 2, columns: 2)

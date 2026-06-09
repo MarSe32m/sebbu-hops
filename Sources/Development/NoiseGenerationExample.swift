@@ -20,7 +20,7 @@ func plotGaussianNoiseVsBCF<T: NoiseProcessGenerator>(count: Int, generator: T, 
     let bcf = tSpace.map { bcf($0) }
     let meanBCF = tSpace.parallelMap { t in
         var result: Complex<Double> = .zero
-        for z in noises {
+        for (i, z) in noises.enumerated() {
             let zt = z(t)
             let zs = z(s)
             result += zt * zs.conjugate
@@ -28,11 +28,12 @@ func plotGaussianNoiseVsBCF<T: NoiseProcessGenerator>(count: Int, generator: T, 
         return result / Double(count)
     }
     plt.figure()
+    plt.plot(x: tSpace, y: bcf.real, label: "Re alpha(t - s)")
+    plt.plot(x: tSpace, y: bcf.imaginary, label: "Im alpha(t - s)")
+    
     plt.plot(x: tSpace, y: meanBCF.real, label: "Re <z(t)z(s)^*>")
     plt.plot(x: tSpace, y: meanBCF.imaginary, label: "Im <z(t)z(s)^*>")
     
-    plt.plot(x: tSpace, y: bcf.real, label: "Re alpha(t - s)")
-    plt.plot(x: tSpace, y: bcf.imaginary, label: "Im alpha(t - s)")
     plt.legend()
     plt.xlabel("t")
     plt.ylabel("BCF")
@@ -165,11 +166,13 @@ func ornsteinUhlenbeckExample2() {
 }
 
 func ornsteinUhlenbeckExample3() {
+    print("Correlated OU-process")
     func _bcfFunc(t: Double, spectralDensity: (Double) -> Double) -> Complex<Double> {
         Quad.integrate(a: 0, b: .infinity) { omega in
             spectralDensity(omega) * .init(length: 1, phase: -omega * t)
         }
     }
+    let tMax: Double = 100.0
     let tSpace: [Double] = .linearSpace(0, 20, 1000)
     let bcf = tSpace.map { t in
         _bcfFunc(t: t) { omega in
@@ -177,9 +180,9 @@ func ornsteinUhlenbeckExample3() {
         }
     }
     let bcfSpline = CubicHermiteSpline(x: tSpace, y: bcf)
-    let sampleSpace = [Double].linearSpace(0, 20, 10000)
+    let sampleSpace = [Double].linearSpace(0, tMax, 0.01)
     let (G, W, r) = NonLinearFit.fitPhysical(t: tSpace, y: bcf, terms: 3)
-    let generator = PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator(r: r, W: W, t: sampleSpace)
+    let generator = PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator(r: r, W: W, start: 0, end: tMax, dt: 0.01)
     plotGaussianNoiseVsBCF(count: 10000, generator: generator, tSpace: tSpace) { t in
         var result: Complex<Double> = .zero
         for (g, w) in zip(G, W) {
@@ -188,7 +191,7 @@ func ornsteinUhlenbeckExample3() {
         return result
     }
     
-    for _ in 0..<100 {
+    for _ in 0..<10 {
         let z = generator.generate()
         let noiseSamples = sampleSpace.map { z.sample($0) }
         plt.figure()
@@ -198,10 +201,19 @@ func ornsteinUhlenbeckExample3() {
         plt.close()
     }
     
-    let generator2 = GaussianFFTNoiseProcessGenerator(tMax: 20) { omega in
+    let generator2 = GaussianFFTNoiseProcessGenerator(tMax: tMax, dtMax: 0.01) { omega in
         0.027 * omega * omega * omega * .exp(-omega * omega / (1.447 * 1.447))
     }
     plotGaussianNoiseVsBCF(count: 10000, generator: generator2, tSpace: tSpace) { t in
         bcfSpline.sample(t)
+    }
+    for _ in 0..<10 {
+        let z = generator2.generate()
+        let noiseSamples = sampleSpace.map { z.sample($0) }
+        plt.figure()
+        plt.plot(x: sampleSpace, y: noiseSamples.real, label: "Re z")
+        plt.plot(x: sampleSpace, y: noiseSamples.imaginary, label: "Im z")
+        plt.show()
+        plt.close()
     }
 }

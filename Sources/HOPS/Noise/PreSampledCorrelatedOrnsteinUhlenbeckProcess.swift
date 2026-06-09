@@ -20,13 +20,11 @@ public struct PreSampledCorrelatedOrnsteinUhlenbeckProcess: ComplexNoiseProcess,
         var x: Vector<Complex<Double>> = .zero(F.count)
         var xNew: Vector<Complex<Double>> = .zero(F.count)
         let one: Vector<Complex<Double>> = .init(.init(repeating: .one, count: F.count))
-//        for i in 0..<xi.count { xi[i] = random.nextNormal(stdev: .sqrt(0.5)) }
         for i in 0..<xi.count { xi[i] = randomNumbers.removeLast() }
         LC._dot(xi, into: &x)
         var samples: [Complex<Double>] = [one.inner(x)]
         for _ in 1..<t.count {
             // x_{n+1} = Fx_n + L_R xi_n
-//            for i in 0..<xi.count { xi[i] = random.nextNormal(stdev: .sqrt(0.5)) }
             for i in 0..<xi.count { xi[i] = randomNumbers.removeLast() }
             for i in 0..<xNew.count { xNew[i] = x[i] * F[i] }
             LR._dot(xi, addingInto: &xNew)
@@ -43,29 +41,9 @@ public struct PreSampledCorrelatedOrnsteinUhlenbeckProcess: ComplexNoiseProcess,
     
     @inlinable
     public init(r: [Complex<Double>], W: [Complex<Double>], t: [Double], seed: UInt32 = .random(in: .min ... .max)) {
-        precondition(r.count == W.count, "The r and W arrays must have the same size.")
+        precondition(t.count >= 2, "Need at least two time points.")
         let dt = t[1] - t[0]
-        let F: [Complex<Double>] = W.map { .exp(-$0 * dt) }
-        var C: Matrix<Complex<Double>> = .zeros(rows: r.count, columns: r.count)
-        var R: Matrix<Complex<Double>> = .zeros(rows: r.count, columns: r.count)
-        for i in 0..<C.rows {
-            for j in 0..<C.columns {
-                C[i, j] = r[i] * r[j].conjugate / (W[i] + W[j].conjugate)
-                R[i, j] = C[i, j] * (.one - F[i] * F[j].conjugate)
-            }
-        }
-        guard let (D, UVectors) = try? MatrixOperations.diagonalizeHermitian(C) else {
-            fatalError("Failed to factorize C")
-        }
-        guard let (S, VVectors) = try? MatrixOperations.diagonalizeHermitian(R) else {
-            fatalError("Failed to factorize R")
-        }
-        let DMatrix: Matrix<Complex<Double>> = .diagonal(from: D.map { Complex($0.squareRoot()) })
-        let U: Matrix<Complex<Double>> = .from(columns: UVectors.map { $0.components })
-        let SMatrix: Matrix<Complex<Double>> = .diagonal(from: S.map { Complex($0.squareRoot()) })
-        let V: Matrix<Complex<Double>> = .from(columns: VVectors.map { $0.components })
-        let LC = U.dot(DMatrix)
-        let LR = V.dot(SMatrix)
+        let (F, LC, LR) = PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator.constructFLCLR(r: r, W: W, dt: dt)
         self.init(LC: LC, LR: LR, F: F, t: t, seed: seed)
     }
     
@@ -114,31 +92,16 @@ public struct PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator: NoiseProces
     public init(r: [Complex<Double>], W: [Complex<Double>], t: [Double]) {
         precondition(r.count == W.count, "The r and W arrays must have the same size.")
         let dt = t[1] - t[0]
-        let F: [Complex<Double>] = W.map { .exp(-$0 * dt) }
-        var C: Matrix<Complex<Double>> = .zeros(rows: r.count, columns: r.count)
-        var R: Matrix<Complex<Double>> = .zeros(rows: r.count, columns: r.count)
-        for i in 0..<C.rows {
-            for j in 0..<C.columns {
-                C[i, j] = r[i] * r[j].conjugate / (W[i] + W[j].conjugate)
-                R[i, j] = C[i, j] * (.one - F[i] * F[j].conjugate)
-            }
-        }
-        guard let (D, UVectors) = try? MatrixOperations.diagonalizeHermitian(C) else {
-            fatalError("Failed to factorize C")
-        }
-        guard let (S, VVectors) = try? MatrixOperations.diagonalizeHermitian(R) else {
-            fatalError("Failed to factorize R")
-        }
-        let DMatrix: Matrix<Complex<Double>> = .diagonal(from: D.map { Complex($0.squareRoot()) })
-        let U: Matrix<Complex<Double>> = .from(columns: UVectors.map { $0.components })
-        let SMatrix: Matrix<Complex<Double>> = .diagonal(from: S.map { Complex($0.squareRoot()) })
-        let V: Matrix<Complex<Double>> = .from(columns: VVectors.map { $0.components })
-        let LC = U.dot(DMatrix)
-        let LR = V.dot(SMatrix)
+        let (F, LC, LR) = Self.constructFLCLR(r: r, W: W, dt: dt)
+        self.F = F
         self.LC = LC
         self.LR = LR
-        self.F = F
         self.t = t
+    }
+    
+    @inlinable
+    public init(r: [Complex<Double>], W: [Complex<Double>], start: Double, end: Double, dt: Double) {
+        self.init(r: r, W: W, t: .linearSpace(start, end, dt))
     }
     
     @inlinable
@@ -146,4 +109,42 @@ public struct PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator: NoiseProces
     public func generate() -> sending PreSampledCorrelatedOrnsteinUhlenbeckProcess {
         PreSampledCorrelatedOrnsteinUhlenbeckProcess(LC: LC, LR: LR, F: F, t: t)
     }
+    
+    @inlinable
+    internal static func constructFLCLR(r: [Complex<Double>], W: [Complex<Double>], dt: Double) -> (F: [Complex<Double>], LC: Matrix<Complex<Double>>, LR: Matrix<Complex<Double>>) {
+        precondition(!r.isEmpty, "Need at least one OU mode.")
+        precondition(r.count == W.count, "The r and W arrays must have the same size.")
+        precondition(dt > 0.0, "The timestep must be positive.")
+
+        for w in W {
+            precondition(w.real > 0.0, "All W must have positive real part.")
+            precondition(w.real.isFinite && w.imaginary.isFinite, "W contains non-finite values.")
+        }
+
+        for x in r {
+            precondition(x.real.isFinite && x.imaginary.isFinite, "r contains non-finite values.")
+        }
+        let F: [Complex<Double>] = W.map { .exp(-$0 * dt) }
+        var C: Matrix<Complex<Double>> = .zeros(rows: r.count, columns: r.count)
+        for i in 0..<C.rows {
+            for j in 0..<C.columns {
+                C[i, j] = r[i] * r[j].conjugate / (W[i] + W[j].conjugate)
+            }
+        }
+        C = MatrixOperations.symmetrizedHermitian(C)
+        
+        var R: Matrix<Complex<Double>> = .zeros(rows: r.count, columns: r.count)
+        for i in 0..<R.rows {
+            for j in 0..<R.columns {
+                // We do it this way since this is more stable for small time-steps
+                let z = (W[i] + W[j].conjugate) * dt
+                R[i, j] = r[i] * r[j].conjugate * dt * .phiOneMinusExpMinus(z)
+            }
+        }
+        R = MatrixOperations.symmetrizedHermitian(R)
+        let LC = MatrixOperations.positiveSemidefiniteSquareRoot(C)
+        let LR = MatrixOperations.positiveSemidefiniteSquareRoot(R)
+        return (F, LC, LR)
+    }
 }
+

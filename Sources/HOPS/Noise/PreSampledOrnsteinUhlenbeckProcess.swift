@@ -6,6 +6,7 @@
 //
 
 import Numerics
+import NumericsExtensions
 import SebbuScience
 
 public struct PreSampledOrnsteinUhlenbeckProcess: ComplexNoiseProcess, Sendable {
@@ -18,12 +19,13 @@ public struct PreSampledOrnsteinUhlenbeckProcess: ComplexNoiseProcess, Sendable 
         var random = NumPyRandom(seed: seed)
         var samples: [Complex<Double>] = .init(repeating: .zero, count: t.count)
         for(g, w) in zip(G, W) {
-            precondition(g > 0, "The coefficients must be positive.")
+            precondition(g >= 0, "The coefficients must be non-negative.")
             let randomNumbers: [Complex<Double>] = random.nextNormal(count: t.count, stdev: .sqrt(0.5))
             var x = .sqrt(g) * randomNumbers[0]
             samples[0] += x
             let dt = t[1] - t[0]
             let r: Complex<Double> = .exp(-dt * w)
+            //TODO: Use .oneMinusExpMinus for B like in the correlated case
             let B: Double = .sqrt(g * (1 - r.lengthSquared))
             for i in 1..<t.count {
                 x = r * x + B * randomNumbers[i]
@@ -91,6 +93,16 @@ public struct PreSampledOrnsteinUhlenbeckProcessGenerator: NoiseProcessGenerator
         self.G = G
         self.W = W
         self.t = t
+    }
+    
+    @inlinable
+    public init(G: Double, W: Complex<Double>, start: Double, end: Double, dt: Double) {
+        self.init(G: G, W: W, t: .linearSpace(start, end, dt))
+    }
+    
+    @inlinable
+    public init(G: [Double], W: [Complex<Double>], start: Double, end: Double, dt: Double) {
+        self.init(G: G, W: W, t: .linearSpace(start, end, dt))
     }
     
     @inlinable
