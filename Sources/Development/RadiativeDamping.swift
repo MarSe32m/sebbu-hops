@@ -28,7 +28,7 @@ private func masterEquationSolution(endTime: Double, initialRho: Matrix<Complex<
 }
 
 public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
-    let A = 0.8
+    let A = 0.000000027
     let omegaC = 1.447
     let gamma = 0.175
     let stepSize = 0.01
@@ -52,7 +52,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
         spectralDensity(omega: omega, A: A, omegaC: omegaC)
     }
 //    let zGenerator = ZeroNoiseProcessGenerator()
-    let whiteNoiseGenerator = PreSampledGaussianWhiteNoiseProcessGenerator(mean: 0, deviation: (gamma / 2).squareRoot(), start: 0, end: endTime, step: 0.01)
+    let whiteNoiseGenerator = PreSampledGaussianWhiteNoiseProcessGenerator(mean: 0, deviation: .sqrt(0.5 * gamma), start: 0, end: endTime, step: 0.01)
     let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
     let _initialState: UniqueVector<Complex<Double>> = .init(copying: initialState)
     
@@ -96,7 +96,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
                 }
             }
             let unifiedLinearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
-                let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(noise: w, rate: gamma, jumpOperator: sigmaMinus)
+                let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(/*noise: w, */rate: gamma, jumpOperator: sigmaMinus)
                 return unifiedHierarchy.solveLinear(end: endTime, initialState: _initialState, H: _H, noises: z, jumpOperators: jumpOperator, stepSize: stepSize)
             }
             for trajectory in unifiedLinearTrajectories {
@@ -112,7 +112,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
             }
             
             let unifiedLinearShiftedTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
-                let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(noise: w, rate: gamma, jumpOperator: sigmaMinus)
+                let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(/*noise: w, */rate: gamma, jumpOperator: sigmaMinus)
                 return unifiedHierarchy.solveLinear(end: endTime, initialState: _initialState, H: _H, noises: z, shiftType: .meanField, jumpOperators: jumpOperator, stepSize: stepSize)
             }
             for trajectory in unifiedLinearShiftedTrajectories {
@@ -169,7 +169,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
             }
             
             let unifiedNonLinearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
-                let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(noise: w, rate: gamma, jumpOperator: sigmaMinus)
+                let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(/*noise: w,*/ rate: gamma, jumpOperator: sigmaMinus)
                 return unifiedHierarchy.solveNonLinear(end: endTime, initialState: _initialState, H: _H, noises: z, shiftType: .none, jumpOperators: jumpOperator, stepSize: stepSize)
             }
             for trajectory in unifiedNonLinearTrajectories {
@@ -185,7 +185,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
             }
             
             let unifiedNonLinearNormalizedTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
-                let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(noise: w, rate: gamma, jumpOperator: sigmaMinus)
+                let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(/*noise: w, */rate: gamma, jumpOperator: sigmaMinus)
                 return unifiedHierarchy.solveNonLinearNormalized(end: endTime, initialState: _initialState, H: _H, noises: z, shiftType: .meanField, jumpOperators: jumpOperator, stepSize: stepSize)
             }
             for trajectory in unifiedNonLinearNormalizedTrajectories {
@@ -250,9 +250,9 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     plt.plot(x: linearUnifiedShiftedTSpace, y: linearUnifiedShiftedY, label: "Lin uni shifted <y>", linestyle: "--")
     plt.plot(x: linearUnifiedShiftedTSpace, y: linearUnifiedShiftedZ, label: "Lin uni shifted <z>", linestyle: "--")
     
-//    plt.plot(x: masterEquationTSpace, y: masterEquationX, label: "Master Eq. <x>", linestyle: "-.")
-//    plt.plot(x: masterEquationTSpace, y: masterEquationY, label: "Master Eq. <y>", linestyle: "-.")
-//    plt.plot(x: masterEquationTSpace, y: masterEquationZ, label: "Master Eq. <z>", linestyle: "-.")
+    plt.plot(x: masterEquationTSpace, y: masterEquationX, label: "Master Eq. <x>", linestyle: "-.")
+    plt.plot(x: masterEquationTSpace, y: masterEquationY, label: "Master Eq. <y>", linestyle: "-.")
+    plt.plot(x: masterEquationTSpace, y: masterEquationZ, label: "Master Eq. <z>", linestyle: "-.")
     
     plt.legend()
     plt.xlabel("t")
@@ -273,9 +273,9 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     plt.plot(x: nonLinearNormalizedUnifiedTSpace, y: nonLinearNormalizedUnifiedY, label: "Non-lin norm uni <y>", linestyle: "--")
     plt.plot(x: nonLinearNormalizedUnifiedTSpace, y: nonLinearNormalizedUnifiedZ, label: "Non-lin norm uni <z>", linestyle: "--")
     
-//    plt.plot(x: masterEquationTSpace, y: masterEquationX, label: "Master Eq. <x>", linestyle: "-.")
-//    plt.plot(x: masterEquationTSpace, y: masterEquationY, label: "Master Eq. <y>", linestyle: "-.")
-//    plt.plot(x: masterEquationTSpace, y: masterEquationZ, label: "Master Eq. <z>", linestyle: "-.")
+    plt.plot(x: masterEquationTSpace, y: masterEquationX, label: "Master Eq. <x>", linestyle: "-.")
+    plt.plot(x: masterEquationTSpace, y: masterEquationY, label: "Master Eq. <y>", linestyle: "-.")
+    plt.plot(x: masterEquationTSpace, y: masterEquationZ, label: "Master Eq. <z>", linestyle: "-.")
     
     plt.legend()
     plt.xlabel("t")

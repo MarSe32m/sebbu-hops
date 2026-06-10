@@ -656,6 +656,20 @@ public extension UnifiedHOPSHierarchy {
         
         @inlinable
         @inline(always)
+        public init(rate: Double, jumpOperator: Matrix<Complex<Double>>) where T == GaussianWhiteNoiseProcess {
+            let noise = GaussianWhiteNoiseProcess(mean: 0, deviation: .sqrt(0.5 * rate))
+            self.init(noise: noise, rate: rate, jumpOperator: jumpOperator)
+        }
+        
+        @inlinable
+        @inline(always)
+        public init(rate: @Sendable @escaping (Double) -> Double, jumpOperator: Matrix<Complex<Double>>) where T == GaussianWhiteNoiseProcess {
+            let noise = GaussianWhiteNoiseProcess(mean: 0, deviation: { t in .sqrt(0.5 * rate(t)) })
+            self.init(noise: noise, rate: rate, jumpOperator: jumpOperator)
+        }
+        
+        @inlinable
+        @inline(always)
         internal func operate(on state: UnsafePointer<Complex<Double>>, into: UnsafeMutablePointer<Complex<Double>>) {
             jumpOperator.unsafeDot(state, into: into)
         }

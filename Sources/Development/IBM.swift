@@ -151,7 +151,7 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
     plt.show()
     plt.close()
 }
-import Darwin
+
 public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF: Bool = false) {
     let A = 0.27
     let omegaC = 1.447
