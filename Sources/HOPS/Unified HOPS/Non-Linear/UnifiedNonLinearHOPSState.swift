@@ -105,7 +105,7 @@ extension UnifiedHOPSHierarchy {
             Heff.multiply(by: -.i)
             var scalarFactor: Complex<Double> = .zero
             for i in LSpan.indices {
-                Heff.add(LSpan[unchecked: i], multiplied: noises[unchecked: i](t).conjugate + noiseShifts[unchecked: i])
+                Heff.add(LSpan[unchecked: i], multiplied: noises[unchecked: i].sample(t).conjugate + noiseShifts[unchecked: i])
                 if shiftType == .meanField {
                     Heff.add(LDaggerSpan[unchecked: i], multiplied: -noiseShifts[unchecked: i].conjugate)
                     scalarFactor = Relaxed.multiplyAdd(noiseShifts[unchecked: i].conjugate, LDaggerExpectations[unchecked: i], scalarFactor)

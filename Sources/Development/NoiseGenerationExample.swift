@@ -111,7 +111,7 @@ func ornsteinUhlenbeckExample() {
     let bcf = tSpace.map { G * .exp(-$0 * W) }
     let bcfSpline = CubicHermiteSpline(x: tSpace, y: bcf)
     let sampleSpace = [Double].linearSpace(0, 20, 10000)
-    let generator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G, W: W, t: sampleSpace)
+    let generator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G, W: W, start: 0, end: 20, step: 20.0 / 10000.0)
     plotGaussianNoiseVsBCF(count: 10000, generator: generator, tSpace: tSpace) { t in
         bcfSpline.sample(t)
     }
@@ -137,7 +137,7 @@ func ornsteinUhlenbeckExample2() {
     }
     let bcfSpline = CubicHermiteSpline(x: tSpace, y: bcf)
     let sampleSpace = [Double].linearSpace(0, 20, 10000)
-    let generator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G, W: W, t: sampleSpace)
+    let generator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G, W: W, start: 0, end: 20, step: 20.0 / 10000.0)
     plotGaussianNoiseVsBCF(count: 10000, generator: generator, tSpace: tSpace) { t in
         bcfSpline.sample(t)
     }
@@ -181,8 +181,8 @@ func ornsteinUhlenbeckExample3() {
     }
     let bcfSpline = CubicHermiteSpline(x: tSpace, y: bcf)
     let sampleSpace = [Double].linearSpace(0, tMax, 0.01)
-    let (G, W, r) = NonLinearFit.fitPhysical(t: tSpace, y: bcf, terms: 3)
-    let generator = PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator(r: r, W: W, start: 0, end: tMax, dt: 0.01)
+    let (G, W, r) = NonLinearFit.fitPhysical(t: tSpace, y: bcf, terms: 1)
+    let generator = PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator(r: r, W: W, start: 0, end: tMax, step: 0.01)
     plotGaussianNoiseVsBCF(count: 10000, generator: generator, tSpace: tSpace) { t in
         var result: Complex<Double> = .zero
         for (g, w) in zip(G, W) {

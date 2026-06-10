@@ -11,54 +11,43 @@ import SebbuScience
 
 public struct PreSampledOrnsteinUhlenbeckProcess: ComplexNoiseProcess, Sendable {
     @usableFromInline
-    internal let interpolator: LinearInterpolator<Complex<Double>>
+    internal let interpolator: UniformLinearInterpolator<Complex<Double>>
     
     @inlinable
-    public init(G: [Double], W: [Complex<Double>], t: [Double], seed: UInt32 = .random(in: .min ... .max)) {
+    public init(G: [Double], W: [Complex<Double>], start: Double, end: Double, step: Double, seed: UInt32 = .random(in: .min ... .max)) {
         precondition(G.count == W.count, "The count of G and W must be equal.")
         var random = NumPyRandom(seed: seed)
-        var samples: [Complex<Double>] = .init(repeating: .zero, count: t.count)
+        var samples: [Complex<Double>] = .init(repeating: .zero, count: Int((end - start) / step))
         for(g, w) in zip(G, W) {
             precondition(g >= 0, "The coefficients must be non-negative.")
-            let randomNumbers: [Complex<Double>] = random.nextNormal(count: t.count, stdev: .sqrt(0.5))
+            let randomNumbers: [Complex<Double>] = random.nextNormal(count: samples.count, stdev: .sqrt(0.5))
             var x = .sqrt(g) * randomNumbers[0]
             samples[0] += x
-            let dt = t[1] - t[0]
-            let r: Complex<Double> = .exp(-dt * w)
-            let exponent: Double = dt * 2 * w.real
+            let r: Complex<Double> = .exp(-step * w)
+            let exponent: Double = step * 2 * w.real
             let B: Double = .sqrt(g * .oneMinusExpMinus(exponent))
-            for i in 1..<t.count {
+            for i in 1..<samples.count {
                 x = r * x + B * randomNumbers[i]
                 samples[i] += x
             }
         }
-        self.interpolator = LinearInterpolator(x: t, y: samples)
+        self.interpolator = UniformLinearInterpolator(start: start, step: step, y: samples)
     }
     
     @inlinable
-    public init(G: [Double], W: [Complex<Double>], start: Double, end: Double, dt: Double, seed: UInt32 = .random(in: .min ... .max)) {
-        self.init(G: G, W: W, t: .linearSpace(start, end, dt), seed: seed)
+    public init(G: Double, W: Complex<Double>, start: Double, end: Double, step: Double, seed: UInt32 = .random(in: .min ... .max)) {
+        self.init(G: [G], W: [W], start: start, end: end, step: step, seed: seed)
     }
     
     @inlinable
-    public init(G: Double, W: Complex<Double>, t: [Double], seed: UInt32 = .random(in: .min ... .max)) {
-        self.init(G: [G], W: [W], t: t, seed: seed)
-    }
-    
-    @inlinable
-    public init(G: Double, W: Complex<Double>, start: Double, end: Double, dt: Double, seed: UInt32 = .random(in: .min ... .max)) {
-        self.init(G: G, W: W, t: .linearSpace(start, end, dt), seed: seed)
-    }
-    
-    @inlinable
-    internal init(_ interpolator: LinearInterpolator<Complex<Double>>) {
+    internal init(_ interpolator: UniformLinearInterpolator<Complex<Double>>) {
         self.interpolator = interpolator
     }
     
     @inlinable
     @inline(always)
     public func sample(_ t: Double) -> Complex<Double> {
-        interpolator(t)
+        interpolator.sample(t)
     }
     
     @inlinable
@@ -69,7 +58,7 @@ public struct PreSampledOrnsteinUhlenbeckProcess: ComplexNoiseProcess, Sendable 
     
     @inlinable
     public func antithetic() -> PreSampledOrnsteinUhlenbeckProcess {
-        PreSampledOrnsteinUhlenbeckProcess(LinearInterpolator(x: interpolator.x, y: interpolator.y.map { -$0 }))
+        PreSampledOrnsteinUhlenbeckProcess(UniformLinearInterpolator(start: interpolator.start, step: interpolator.step, y: interpolator.y.map { -$0 }))
     }
 }
 
@@ -81,33 +70,31 @@ public struct PreSampledOrnsteinUhlenbeckProcessGenerator: NoiseProcessGenerator
     internal let W: [Complex<Double>]
     
     @usableFromInline
-    internal let t: [Double]
+    internal let start: Double
+    
+    @usableFromInline
+    internal let end: Double
+    
+    @usableFromInline
+    internal let step: Double
     
     @inlinable
-    public init(G: Double, W: Complex<Double>, t: [Double]) {
-        self.init(G: [G], W: [W], t: t)
+    public init(G: Double, W: Complex<Double>, start: Double, end: Double, step: Double) {
+        self.init(G: [G], W: [W], start: start, end: end, step: step)
     }
     
     @inlinable
-    public init(G: [Double], W: [Complex<Double>], t: [Double]) {
+    public init(G: [Double], W: [Complex<Double>], start: Double, end: Double, step: Double) {
         self.G = G
         self.W = W
-        self.t = t
-    }
-    
-    @inlinable
-    public init(G: Double, W: Complex<Double>, start: Double, end: Double, dt: Double) {
-        self.init(G: G, W: W, t: .linearSpace(start, end, dt))
-    }
-    
-    @inlinable
-    public init(G: [Double], W: [Complex<Double>], start: Double, end: Double, dt: Double) {
-        self.init(G: G, W: W, t: .linearSpace(start, end, dt))
+        self.start = start
+        self.end = end
+        self.step = step
     }
     
     @inlinable
     @inline(always)
     public func generate() -> sending PreSampledOrnsteinUhlenbeckProcess {
-        PreSampledOrnsteinUhlenbeckProcess(G: G, W: W, t: t)
+        PreSampledOrnsteinUhlenbeckProcess(G: G, W: W, start: start, end: end, step: step)
     }
 }

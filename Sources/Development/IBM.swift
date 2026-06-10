@@ -151,7 +151,7 @@ public func IBMExample(realizations: Int, endTime: Double = 7.0, plotBCF: Bool =
     plt.show()
     plt.close()
 }
-
+import Darwin
 public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF: Bool = false) {
     let A = 0.27
     let omegaC = 1.447
@@ -162,9 +162,9 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     
     let BCF = {
         let tSpace: [Double] = .linearSpace(0, 10, 501)
-        return UnifiedHOPSHierarchy.BathCorrelationFunction(tSpace: tSpace, terms: 3) { t in
+        return UnifiedHOPSHierarchy.BathCorrelationFunction(tSpace: tSpace, terms: 3, physicallyFitting: { t in
             bathCorrelationFunction(A: A, omegaC: omegaC, t: t)
-        }
+        })
     }()
     
     let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
@@ -172,14 +172,15 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     let hierarchyForShift = UnifiedHOPSHierarchy(dimension: 2, L: L, bathCorrelationFunctions: BCF, depth: 4)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, Complex(renormalizationEnergy)], rows: 2, columns: 2)
-    let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
-        spectralDensity(omega: omega, A: A, omegaC: omegaC)
-    }
+    let zGenerator = BCF.preSampledGenerator(start: 0, end: endTime, step: 0.005)
+//    let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
+//        spectralDensity(omega: omega, A: A, omegaC: omegaC)
+//    }
 //    let zGenerator = ZeroNoiseProcessGenerator()
     let noiseGenerationStart = ContinuousClock().now
     let noises = zGenerator.generateParallel(count: realizations)
     let noiseGenerationEnd = ContinuousClock().now
-    print("Noise generation time: \(noiseGenerationEnd - noiseGenerationStart)")
+    print("Noise (\(noises.count)) generation time: \(noiseGenerationEnd - noiseGenerationStart)")
     let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
     //let _initialState: UniqueVector<Complex<Double>> = .init(copying: initialState)
     
@@ -189,7 +190,7 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     }
     let linearEnd = ContinuousClock().now
     print("Linear time: \(linearEnd - linearStart)")
-    
+    //exit(0)
     let linearShiftedStart = ContinuousClock.now
     let linearShiftedTrajectories = noises.parallelMap { z in
         hierarchyForShift.solveLinear(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .meanField, stepSize: 0.01)
@@ -403,17 +404,26 @@ public func IBMFockStateAmplitudesExample(endTime: Double = 7.0) {
     }
     let BCF = {
         let tSpace: [Double] = .linearSpace(0, 10, 501)
-        return UnifiedHOPSHierarchy.BathCorrelationFunction(tSpace: tSpace, terms: bcfTerms) { t in
+        return UnifiedHOPSHierarchy.BathCorrelationFunction(tSpace: tSpace, terms: bcfTerms, physicallyFitting: { t in
             bathCorrelationFunction(A: A, omegaC: omegaC, t: t)
-        }
+        })
     }()
-    let L: Matrix<Complex<Double>> = .init(elements: [.zero, .one, .zero, .one], rows: 2, columns: 2)
+    let tSpa: [Double] = .linearSpace(0, 10, 501)
+    plt.figure()
+    plt.plot(x: tSpa, y: tSpa.map { BCF($0) }.real, label: "Re BCF")
+    plt.plot(x: tSpa, y: tSpa.map { BCF($0) }.imaginary, label: "Im BCF")
+    plt.legend()
+    plt.show()
+    plt.close()
+    
+    let L: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, .one], rows: 2, columns: 2)
     let hierarchy = UnifiedHOPSHierarchy(dimension: 2, L: L, bathCorrelationFunctions: BCF, depth: hierarchyDepth)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, .zero, .zero, Complex(renormalizationEnergy)], rows: 2, columns: 2)
-    let noise = GaussianFFTNoiseProcess(tMax: endTime, seed: 1239473214) { omega in
-        spectralDensity(omega: omega, A: A, omegaC: omegaC)
-    }
+//    let noise = GaussianFFTNoiseProcess(tMax: endTime, seed: 1239473214) { omega in
+//        spectralDensity(omega: omega, A: A, omegaC: omegaC)
+//    }
+    let noise = BCF.generateNoise(start: 0, end: endTime, step: 0.005, seed: 1234)
     let zeroNoise = ZeroNoiseProcess()
     let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
     //let _initialState: UniqueVector<Complex<Double>> = .init(copying: initialState)

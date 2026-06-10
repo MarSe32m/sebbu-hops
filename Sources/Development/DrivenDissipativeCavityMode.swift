@@ -167,8 +167,8 @@ private func solveModelWithHOPS(endTime: Double, omegaX: Double, g: Double, omeg
 //        G / .pi * (1.0 / (W - Complex(imaginary: omega))).real
 //    }
     
-    let vaccuumNoiseGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G1, W: W1, t: .linearSpace(0, endTime, 0.01))
-    let temperatureGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G2, W: W2, t: .linearSpace(0, endTime, 0.01))
+    let vaccuumNoiseGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G1, W: W1, start: 0, end: endTime, step: 0.005)
+    let temperatureGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G2, W: W2, start: 0, end: endTime, step: 0.005)
 //    let temperatureGenerator = ZeroNoiseProcessGenerator()
     
     let sigmaMinus = Matrix<Complex<Double>>(elements: [.zero, .one, .zero, .zero], rows: 2, columns: 2)
@@ -239,8 +239,8 @@ private func solveModelWithUnifiedHOPS(endTime: Double, omegaX: Double, g: Doubl
 //        G / .pi * (1.0 / (W - Complex(imaginary: omega))).real
 //    }
     
-    let vaccuumNoiseGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G1, W: W1, start: 0, end: endTime, dt: 0.01)
-    let temperatureGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G2, W: W2, start: 0, end: endTime, dt: 0.01)
+    let vaccuumNoiseGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G1, W: W1, start: 0, end: endTime, step: 0.005)
+    let temperatureGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G2, W: W2, start: 0, end: endTime, step: 0.005)
 //    let temperatureGenerator = ZeroNoiseProcessGenerator()
     
     let sigmaMinus = Matrix<Complex<Double>>(elements: [.zero, .one, .zero, .zero], rows: 2, columns: 2)
@@ -353,7 +353,7 @@ private func solveModelWithNMQSD(endTime: Double, omegaX: Double, g: Double, ome
     let G = Complex(g * g)
     let W = Complex(gammaMinus / 2, omegaC)
     
-    let gammaMinusGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G.real, W: W, t: .linearSpace(0, endTime, 0.001))
+    let gammaMinusGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G.real, W: W, start: 0, end: endTime, step: 0.001)
     let weight = Double(trajectories).reciprocal!
     var trajectoriesComputed = 0
     var rho: [Matrix<Complex<Double>>] = []
@@ -411,7 +411,7 @@ private func solveModelWithOptimalHOPS(endTime: Double, omegaX: Double, g: Doubl
     let G = Complex(g * g)
     let W = Complex(gammaMinus / 2, omegaC)
     
-    let gammaMinusGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G.real, W: W, t: .linearSpace(0, endTime, 0.001))
+    let gammaMinusGenerator = PreSampledOrnsteinUhlenbeckProcessGenerator(G: G.real, W: W, start: 0, end: endTime, step: 0.001)
     let weight = Double(trajectories).reciprocal!
     var trajectoriesComputed = 0
     var rho: [Matrix<Complex<Double>>] = []

@@ -106,7 +106,7 @@ extension UnifiedHOPSHierarchy {
             H(t, &Heff)
             Heff.multiply(by: -.i)
             for i in hierarchyPointer.pointee.L.indices {
-                Heff.add(LSpan[unchecked: i], multiplied: noises[unchecked: i](t).conjugate)
+                Heff.add(LSpan[unchecked: i], multiplied: noises[unchecked: i].sample(t).conjugate)
                 if shiftType == .meanField {
                     Heff.add(LDaggerSpan[unchecked: i], multiplied: -noiseShifts[unchecked: i].conjugate)
                 }

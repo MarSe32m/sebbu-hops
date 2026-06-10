@@ -20,15 +20,32 @@ public extension UnifiedHOPSHierarchy {
         internal let W: [Complex<Double>]
         
         @usableFromInline
+        internal let r: [Complex<Double>]
+        
+        @usableFromInline
         internal var isZero: Bool { G.isEmpty }
         
         public static var zero: BathCorrelationFunction { BathCorrelationFunction(G: [], W: []) }
+        
+        public let isPhysical: Bool
         
         @inlinable
         public init(G: [Complex<Double>], W: [Complex<Double>]) {
             precondition(G.count == W.count)
             self.G = G
             self.W = W
+            self.r = .init(repeating: .zero, count: G.count)
+            self.isPhysical = false
+        }
+        
+        @inlinable
+        public init(G: [Complex<Double>], W: [Complex<Double>], r: [Complex<Double>]) {
+            precondition(G.count == W.count)
+            precondition(G.count == r.count)
+            self.G = G
+            self.W = W
+            self.r = r
+            self.isPhysical = true
         }
         
         @inlinable
@@ -41,6 +58,17 @@ public extension UnifiedHOPSHierarchy {
             precondition(tSpace.count == bcf.count)
             let (G, W) = MatrixPencil.fit(y: bcf, dt: tSpace[1] - tSpace[0], terms: terms)
             self.init(G: G, W: W)
+        }
+        @inlinable
+        public init(tSpace: [Double], terms: Int, physicallyFitting bcf: (Double) -> Complex<Double>) {
+            self.init(tSpace: tSpace, terms: terms, physicallyFitting: tSpace.map { bcf($0) })
+        }
+        
+        @inlinable
+        public init(tSpace: [Double], terms: Int, physicallyFitting bcf: [Complex<Double>]) {
+            precondition(tSpace.count == bcf.count)
+            let (G, W, r) = NonLinearFit.fitPhysical(t: tSpace, y: bcf, terms: terms)
+            self.init(G: G, W: W, r: r)
         }
         
         @inlinable
@@ -70,5 +98,24 @@ public extension UnifiedHOPSHierarchy {
             }
             return result
         }
+        
+        @inlinable
+        public func preSampledGenerator(start: Double, end: Double, step: Double) -> PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator {
+            precondition(isPhysical, "The BCF must represent a physical exponential BCF! Meaning that you need to provide the r coefficients")
+            return PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator(r: r, W: W, start: start, end: end, step: step)
+        }
+        
+        @inlinable
+        public func generateNoise(start: Double, end: Double, step: Double, seed: UInt32 = .random(in: .min ... .max)) -> PreSampledCorrelatedOrnsteinUhlenbeckProcess {
+            precondition(isPhysical, "The BCF must represent a physical exponential BCF! Meaning that you need to provide the r coefficients")
+            return PreSampledCorrelatedOrnsteinUhlenbeckProcess(r: r, W: W, start: start, end: end, step: step, seed: seed)
+        }
+        
+        //TODO: Implement
+//        @inlinable
+//        public func onDemandGenerator(step: Double) -> OnDemandCorrelatedOrnsteinUhlenbeckProcessGenerator {
+//            precondition(isPhysical, "The BCF must represent a physical exponential BCF! Meaning that you need to provide the r coefficients")
+//            return OnDemandCorrelatedOrnsteinUhlenbeckProcessGenerator(r: r, W: W, dt: dt)
+//        }
     }
 }

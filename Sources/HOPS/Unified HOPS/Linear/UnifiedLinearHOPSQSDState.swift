@@ -112,7 +112,7 @@ extension UnifiedHOPSHierarchy {
             H(t, &Heff)
             Heff.multiply(by: -.i)
             for i in hierarchyPointer.pointee.L.indices {
-                Heff.add(LSpan[unchecked: i], multiplied: noises[unchecked: i](t).conjugate)
+                Heff.add(LSpan[unchecked: i], multiplied: noises[unchecked: i].sample(t).conjugate)
                 if shiftType == .meanField {
                     Heff.add(LDaggerSpan[unchecked: i], multiplied: -noiseShifts[unchecked: i].conjugate)
                 }
@@ -167,7 +167,7 @@ extension UnifiedHOPSHierarchy {
         @inlinable
         public func sampleWhiteNoise(t: Double, noises: inout MutableSpan<Complex<Double>>) {
             for i in 0..<jumpOperators.count {
-                noises[unchecked: i] = jumpOperators[i].noise(t)
+                noises[unchecked: i] = jumpOperators[i].noise.sample(t)
             }
         }
 

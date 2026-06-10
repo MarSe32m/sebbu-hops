@@ -10,57 +10,47 @@ import SebbuScience
 
 public struct PreSampledCorrelatedOrnsteinUhlenbeckProcess: ComplexNoiseProcess, Sendable {
     @usableFromInline
-    internal let interpolator: LinearInterpolator<Complex<Double>>
+    internal let interpolator: UniformLinearInterpolator<Complex<Double>>
     
     @inlinable
-    public init(LC: Matrix<Complex<Double>>, LR: Matrix<Complex<Double>>, F: [Complex<Double>], t: [Double], seed: UInt32 = .random(in: .min ... .max)) {
+    public init(LC: Matrix<Complex<Double>>, LR: Matrix<Complex<Double>>, F: [Complex<Double>], start: Double, end: Double, step: Double, seed: UInt32 = .random(in: .min ... .max)) {
         var random = NumPyRandom(seed: seed)
-        var randomNumbers: [Complex<Double>] = random.nextNormal(count: t.count * F.count, stdev: .sqrt(0.5))
         var xi: Vector<Complex<Double>> = .zero(F.count)
         var x: Vector<Complex<Double>> = .zero(F.count)
         var xNew: Vector<Complex<Double>> = .zero(F.count)
         let one: Vector<Complex<Double>> = .init(.init(repeating: .one, count: F.count))
-        for i in 0..<xi.count { xi[i] = randomNumbers.removeLast() }
+        for i in 0..<xi.count { xi[i] = random.nextNormal(stdev: .sqrt(0.5)) }
         LC._dot(xi, into: &x)
         var samples: [Complex<Double>] = [one.inner(x)]
-        for _ in 1..<t.count {
+        samples.reserveCapacity(Int((end - start) / step))
+        var t = start
+        while t <= end {
             // x_{n+1} = Fx_n + L_R xi_n
-            for i in 0..<xi.count { xi[i] = randomNumbers.removeLast() }
+            for i in 0..<xi.count { xi[i] = random.nextNormal(stdev: .sqrt(0.5)) }
             for i in 0..<xNew.count { xNew[i] = x[i] * F[i] }
             LR._dot(xi, addingInto: &xNew)
             samples.append(one.inner(xNew))
             swap(&x, &xNew)
+            t += step
         }
-        self.interpolator = LinearInterpolator(x: t, y: samples)
+        self.interpolator = UniformLinearInterpolator(start: start, step: step, y: samples)
     }
     
     @inlinable
-    public init(LC: Matrix<Complex<Double>>, LR: Matrix<Complex<Double>>, F: [Complex<Double>], start: Double, end: Double, dt: Double, seed: UInt32 = .random(in: .min ... .max)) {
-        self.init(LC: LC, LR: LR, F: F, t: .linearSpace(start, end, dt), seed: seed)
+    public init(r: [Complex<Double>], W: [Complex<Double>], start: Double, end: Double, step: Double, seed: UInt32 = .random(in: .min ... .max)) {
+        let (F, LC, LR) = PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator.constructFLCLR(r: r, W: W, dt: step)
+        self.init(LC: LC, LR: LR, F: F, start: start, end: end, step: step, seed: seed)
     }
     
     @inlinable
-    public init(r: [Complex<Double>], W: [Complex<Double>], t: [Double], seed: UInt32 = .random(in: .min ... .max)) {
-        precondition(t.count >= 2, "Need at least two time points.")
-        let dt = t[1] - t[0]
-        let (F, LC, LR) = PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator.constructFLCLR(r: r, W: W, dt: dt)
-        self.init(LC: LC, LR: LR, F: F, t: t, seed: seed)
-    }
-    
-    @inlinable
-    public init(r: [Complex<Double>], W: [Complex<Double>], start: Double, end: Double, dt: Double, seed: UInt32 = .random(in: .min ... .max)) {
-        self.init(r: r, W: W, t: .linearSpace(start, end, dt), seed: seed)
-    }
-    
-    @inlinable
-    internal init(_ interpolator: LinearInterpolator<Complex<Double>>) {
+    internal init(_ interpolator: UniformLinearInterpolator<Complex<Double>>) {
         self.interpolator = interpolator
     }
     
     @inlinable
     @inline(always)
     public func sample(_ t: Double) -> Complex<Double> {
-        interpolator(t)
+        interpolator.sample(t)
     }
     
     @inlinable
@@ -71,7 +61,7 @@ public struct PreSampledCorrelatedOrnsteinUhlenbeckProcess: ComplexNoiseProcess,
     
     @inlinable
     public func antithetic() -> PreSampledCorrelatedOrnsteinUhlenbeckProcess {
-        PreSampledCorrelatedOrnsteinUhlenbeckProcess(LinearInterpolator(x: interpolator.x, y: interpolator.y.map { -$0 }))
+        PreSampledCorrelatedOrnsteinUhlenbeckProcess(UniformLinearInterpolator(start: interpolator.start, step: interpolator.step, y: interpolator.y.map { -$0 }))
     }
 }
 
@@ -86,28 +76,30 @@ public struct PreSampledCorrelatedOrnsteinUhlenbeckProcessGenerator: NoiseProces
     internal let F: [Complex<Double>]
     
     @usableFromInline
-    internal let t: [Double]
+    internal let start: Double
+    
+    @usableFromInline
+    internal let end: Double
+    
+    @usableFromInline
+    internal let step: Double
     
     @inlinable
-    public init(r: [Complex<Double>], W: [Complex<Double>], t: [Double]) {
+    public init(r: [Complex<Double>], W: [Complex<Double>], start: Double, end: Double, step: Double) {
         precondition(r.count == W.count, "The r and W arrays must have the same size.")
-        let dt = t[1] - t[0]
-        let (F, LC, LR) = Self.constructFLCLR(r: r, W: W, dt: dt)
+        let (F, LC, LR) = Self.constructFLCLR(r: r, W: W, dt: step)
         self.F = F
         self.LC = LC
         self.LR = LR
-        self.t = t
-    }
-    
-    @inlinable
-    public init(r: [Complex<Double>], W: [Complex<Double>], start: Double, end: Double, dt: Double) {
-        self.init(r: r, W: W, t: .linearSpace(start, end, dt))
+        self.start = start
+        self.end = end
+        self.step = step
     }
     
     @inlinable
     @inline(always)
     public func generate() -> sending PreSampledCorrelatedOrnsteinUhlenbeckProcess {
-        PreSampledCorrelatedOrnsteinUhlenbeckProcess(LC: LC, LR: LR, F: F, t: t)
+        PreSampledCorrelatedOrnsteinUhlenbeckProcess(LC: LC, LR: LR, F: F, start: start, end: end, step: step)
     }
     
     @inlinable
