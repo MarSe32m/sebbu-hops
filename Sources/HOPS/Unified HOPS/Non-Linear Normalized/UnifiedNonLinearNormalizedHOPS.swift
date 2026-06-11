@@ -271,38 +271,15 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        withoutActuallyEscaping(H) { H in
-            precondition(noises.count == L.count, "There must be equal amount of noises as there are coupling operators")
-            precondition(initialTotalState.count == totalDimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial state")
-            precondition(noiseShifts.count == G.count, "There must be equal amount of noise shifts as there are exponential terms in the total BCF")
-            let initialState: UniqueVector<Complex<Double>> = .init(copying: initialTotalState, count: dimension)
-            return withUnsafePointer(to: self) { hierarchy in
-                let rhs = NonLinearNormalizedHOPSStateFunc(hierarchy: hierarchy, H: H, noises: noises, shiftType: shiftType, customOperators: customOperators)
-                let k1 = rhs.zero()
-                let k2 = rhs.zero()
-                let k3 = rhs.zero()
-                let k4 = rhs.zero()
-                let temporary = rhs.zero()
-                var solver = UniqueRK4Solver(t: start, dt: stepSize, rhs: rhs, k1: k1, k2: k2, k3: k3, k4: k4, temporary: temporary)
-                var state = NonLinearNormalizedHOPSState(totalStateVector: initialTotalState, initialShifts: noiseShifts)
-                var tSpace: [Double] = [0.0]
-                var systemTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialState)]
-                var totalTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialTotalState)]
-                while solver.t < end {
-                    let t = solver.step(y: &state)
-                    tSpace.append(t)
-                    var systemState: Vector<Complex<Double>> = .zero(dimension)
-                    state.extractState(into: &systemState)
-                    systemTrajectory.append(systemState)
-                    if includeHierarchy {
-                        totalTrajectory.append(.init(copying: state.totalStateVector))
-                    }
-                }
-                noises = Span()
-                customOperators = Span()
-                return Trajectory(tSpace: tSpace, systemTrajectory: systemTrajectory, totalTrajectory: totalTrajectory)
-            }
+        var tSpace: [Double] = []
+        var systemTrajectory: [Vector<Complex<Double>>] = []
+        var totalTrajectory: [Vector<Complex<Double>>] = []
+        solveNonLinearNormalized(start: start, end: end, initialTotalState: initialTotalState, H: H, noises: noises, noiseShifts: noiseShifts, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize) { t, system, total in
+            tSpace.append(t)
+            systemTrajectory.append(.init(copying: system))
+            if includeHierarchy { totalTrajectory.append(.init(copying: total)) }
         }
+        return Trajectory(tSpace: tSpace, systemTrajectory: systemTrajectory, totalTrajectory: totalTrajectory)
     }
     
     //MARK: QSD + NMQSD versions
@@ -488,40 +465,14 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        withoutActuallyEscaping(H) { H in
-            precondition(noises.count == L.count, "There must be equal amount of noises as there are coupling operators")
-            precondition(initialTotalState.count == totalDimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial state")
-            let initialState: UniqueVector<Complex<Double>> = .init(copying: initialTotalState, count: dimension)
-            return withUnsafePointer(to: self) { hierarchy in
-                let noiseScratch: UnsafeMutableBufferPointer<Complex<Double>> = .allocate(capacity: jumpOperators.count)
-                defer { noiseScratch.deallocate() }
-                let noiseSpan = noiseScratch.mutableSpan
-                let rhs = NonLinearNormalizedHOPSQSDStateFunc(hierarchy: hierarchy, H: H, noises: noises, shiftType: shiftType, customOperators: customOperators, jumpOperators: jumpOperators)
-                let drift0 = rhs.zero()
-                let drift1 = rhs.zero()
-                let noise0 = rhs.zero()
-                let noise1 = rhs.zero()
-                let temporary = rhs.zero()
-                var solver = UniqueSRK2Solver(t: start, dt: stepSize, rhs: rhs, drift0: drift0, drift1: drift1, noise0: noise0, noise1: noise1, temporary: temporary, noises: noiseSpan)
-                var state = NonLinearNormalizedHOPSQSDState(totalStateVector: initialTotalState, initialShifts: noiseShifts)
-                var tSpace: [Double] = [0.0]
-                var systemTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialState)]
-                var totalTrajectory: [Vector<Complex<Double>>] = [.init(copying: initialTotalState)]
-                while solver.t < end {
-                    let t = solver.step(y: &state)
-                    tSpace.append(t)
-                    var systemState: Vector<Complex<Double>> = .zero(dimension)
-                    state.extractState(into: &systemState)
-                    systemTrajectory.append(systemState)
-                    if includeHierarchy {
-                        totalTrajectory.append(.init(copying: state.totalStateVector))
-                    }
-                }
-                noises = Span()
-                customOperators = Span()
-                jumpOperators = Span()
-                return Trajectory(tSpace: tSpace, systemTrajectory: systemTrajectory, totalTrajectory: totalTrajectory)
-            }
+        var tSpace: [Double] = []
+        var systemTrajectory: [Vector<Complex<Double>>] = []
+        var totalTrajectory: [Vector<Complex<Double>>] = []
+        solveNonLinearNormalized(start: start, end: end, initialTotalState: initialTotalState, H: H, noises: noises, noiseShifts: noiseShifts, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize) { t, system, total in
+            tSpace.append(t)
+            systemTrajectory.append(.init(copying: system))
+            if includeHierarchy { totalTrajectory.append(.init(copying: total)) }
         }
+        return Trajectory(tSpace: tSpace, systemTrajectory: systemTrajectory, totalTrajectory: totalTrajectory)
     }
 }
