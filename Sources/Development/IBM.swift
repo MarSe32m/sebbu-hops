@@ -186,42 +186,42 @@ public func IBMExampleUnified(realizations: Int, endTime: Double = 7.0, plotBCF:
     
     let linearStart = ContinuousClock().now
     let linearTrajectories = noises.parallelMap { z in
-        hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, noises: z, stepSize: 0.01)
+        hierarchy.solve(end: endTime, initialState: initialState, H: H, noises: Span(z), equationType: .linear, stepSize: 0.01)
     }
     let linearEnd = ContinuousClock().now
     print("Linear time: \(linearEnd - linearStart)")
     //exit(0)
     let linearShiftedStart = ContinuousClock.now
     let linearShiftedTrajectories = noises.parallelMap { z in
-        hierarchyForShift.solveLinear(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .meanField, stepSize: 0.01)
+        hierarchyForShift.solve(end: endTime, initialState: initialState, H: H, noises: Span(z), equationType: .linear, shiftType: .meanField, stepSize: 0.01)
     }
     let linearShiftedEnd = ContinuousClock.now
     print("Linear shifted time: \(linearShiftedEnd - linearShiftedStart)")
     
     let nonLinearStart = ContinuousClock().now
     let nonLinearTrajectories = noises.parallelMap { z in
-        hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .none, stepSize: 0.01)
+        hierarchy.solve(end: endTime, initialState: initialState, H: H, noises: Span(z), equationType: .nonLinear, shiftType: .none, stepSize: 0.01)
     }
     let nonLinearEnd = ContinuousClock().now
     print("Non-linear time: \(nonLinearEnd - nonLinearStart)")
     
     let nonLinearNormalizedStart = ContinuousClock().now
     let nonLinearNormalizedTrajectories = noises.parallelMap { z in
-        hierarchy.solveNonLinearNormalized(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .none, stepSize: 0.01)
+        hierarchy.solve(end: endTime, initialState: initialState, H: H, noises: Span(z), equationType: .nonLinearNormalized, shiftType: .none, stepSize: 0.01)
     }
     let nonLinearNormalizedEnd = ContinuousClock().now
     print("Non-linear normalized time: \(nonLinearNormalizedEnd - nonLinearNormalizedStart)")
     
     let nonLinearShiftedStart = ContinuousClock.now
     let nonLinearShiftedTrajectories = noises.parallelMap { z in
-        hierarchyForShift.solveNonLinear(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .meanField, stepSize: 0.01)
+        hierarchyForShift.solve(end: endTime, initialState: initialState, H: H, noises: Span(z), equationType: .nonLinear, shiftType: .meanField, stepSize: 0.01)
     }
     let nonLinearShiftedEnd = ContinuousClock.now
     print("Non-linear shifted time: \(nonLinearShiftedEnd - nonLinearShiftedStart)")
     
     let nonLinearNormalizedShiftedStart = ContinuousClock.now
     let nonLinearNormalizedShiftedTrajectories = noises.parallelMap { z in
-        hierarchyForShift.solveNonLinearNormalized(end: endTime, initialState: initialState, H: H, noises: z, shiftType: .meanField, stepSize: 0.01)
+        hierarchyForShift.solve(end: endTime, initialState: initialState, H: H, noises: Span(z), equationType: .nonLinearNormalized, shiftType: .meanField, stepSize: 0.01)
     }
     let nonLinearNormalizedShiftedEnd = ContinuousClock.now
     print("Non-linear normalized shifted time: \(nonLinearNormalizedShiftedEnd - nonLinearNormalizedShiftedStart)")

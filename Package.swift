@@ -12,7 +12,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/MarSe32m/sebbu-science", branch: "main"),
         .package(url: "https://github.com/apple/swift-algorithms", branch: "main"),
-        .package(url: "https://github.com/apple/swift-collections", from: "1.5.0")
+        .package(url: "https://github.com/apple/swift-collections", from: "1.6.0")
     ],
     targets: [
         .target(
@@ -20,7 +20,8 @@ let package = Package(
             dependencies: [.product(name: "SebbuScience", package: "sebbu-science"),
                            .product(name: "Algorithms", package: "swift-algorithms"),
                            .product(name: "BasicContainers", package: "swift-collections"),
-                           .product(name: "DequeModule", package: "swift-collections")],
+                           .product(name: "DequeModule", package: "swift-collections")
+            ],
             cSettings: [
                 .define("ACCELERATE_NEW_LAPACK", .when(platforms: [.macOS])),
                 .define("ACCELERATE_LAPACK_ILP64", .when(platforms: [.macOS]))
@@ -28,6 +29,7 @@ let package = Package(
             swiftSettings: [
                 .enableExperimentalFeature("Lifetimes"),
                 .enableExperimentalFeature("BuiltinModule"),
+                .enableExperimentalFeature("SuppressedAssociatedTypes"),
                 .enableExperimentalFeature("AddressableParameters"),
                 //.enableExperimentalFeature("AddressableTypes"),
                 .enableExperimentalFeature("BuiltinUnprotectedAddressOf")

@@ -67,31 +67,7 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         forEach operation: (Double, borrowing UniqueVector<Complex<Double>>, borrowing UniqueVector<Complex<Double>>) -> Void
     ) where Noise: ComplexNoiseProcess {
-        withoutActuallyEscaping(H) { H in
-            precondition(noises.count == L.count, "There must be equal amount of noises as there are coupling operators")
-            precondition(initialTotalState.count == totalDimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial state")
-            precondition(noiseShifts.count == G.count, "There must be equal amount of noise shifts as there are exponential terms in the total BCF")
-            let initialState: UniqueVector<Complex<Double>> = .init(copying: initialTotalState, count: dimension)
-            return withUnsafePointer(to: self) { hierarchy in
-                let rhs = NonLinearNormalizedHOPSStateFunc(hierarchy: hierarchy, H: H, noises: noises, shiftType: shiftType, customOperators: customOperators)
-                let k1 = rhs.zero()
-                let k2 = rhs.zero()
-                let k3 = rhs.zero()
-                let k4 = rhs.zero()
-                let temporary = rhs.zero()
-                var solver = UniqueRK4Solver(t: start, dt: stepSize, rhs: rhs, k1: k1, k2: k2, k3: k3, k4: k4, temporary: temporary)
-                var state = NonLinearNormalizedHOPSState(totalStateVector: initialTotalState, initialShifts: noiseShifts)
-                operation(start, initialState, initialTotalState)
-                while solver.t < end {
-                    let t = solver.step(y: &state)
-                    let systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
-                    operation(t, systemState, state.totalStateVector)
-                    let _ = systemState.consumeComponents()
-                }
-                noises = Span()
-                customOperators = Span()
-            }
-        }
+        solve(start: start, end: end, initialTotalState: initialTotalState, H: H, noises: noises, noiseShifts: noiseShifts, equationType: .nonLinearNormalized, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, forEach: operation)
     }
 
     /// Solve the non-linear normalized HOPS equation for this hierarchy structure with QSD jump operators
@@ -154,33 +130,6 @@ public extension UnifiedHOPSHierarchy {
         stepSize: Double = 0.01,
         forEach operation: (Double, borrowing UniqueVector<Complex<Double>>, borrowing UniqueVector<Complex<Double>>) -> Void
     ) where Noise: ComplexNoiseProcess, WhiteNoise: ComplexWhiteNoiseProcess {
-        withoutActuallyEscaping(H) { H in
-            precondition(noises.count == L.count, "There must be equal amount of noises as there are coupling operators")
-            precondition(initialTotalState.count == totalDimension, "The dimension assumed by the hierarchy is not the same as the dimension of the initial state")
-            let initialState: UniqueVector<Complex<Double>> = .init(copying: initialTotalState, count: dimension)
-            return withUnsafePointer(to: self) { hierarchy in
-                let noiseScratch: UnsafeMutableBufferPointer<Complex<Double>> = .allocate(capacity: jumpOperators.count)
-                defer { noiseScratch.deallocate() }
-                let noiseSpan = noiseScratch.mutableSpan
-                let rhs = NonLinearNormalizedHOPSQSDStateFunc(hierarchy: hierarchy, H: H, noises: noises, shiftType: shiftType, customOperators: customOperators, jumpOperators: jumpOperators)
-                let drift0 = rhs.zero()
-                let drift1 = rhs.zero()
-                let noise0 = rhs.zero()
-                let noise1 = rhs.zero()
-                let temporary = rhs.zero()
-                var solver = UniqueSRK2Solver(t: start, dt: stepSize, rhs: rhs, drift0: drift0, drift1: drift1, noise0: noise0, noise1: noise1, temporary: temporary, noises: noiseSpan)
-                var state = NonLinearNormalizedHOPSQSDState(totalStateVector: initialTotalState, initialShifts: noiseShifts)
-                operation(start, initialState, initialTotalState)
-                while solver.t < end {
-                    let t = solver.step(y: &state)
-                    let systemState: UniqueVector<Complex<Double>> = .init(_unsafeComponents: state.totalStateVector.components, count: dimension)
-                    operation(t, systemState, state.totalStateVector)
-                    let _ = systemState.consumeComponents()
-                }
-                noises = Span()
-                customOperators = Span()
-                jumpOperators = Span()
-            }
-        }
+        solve(start: start, end: end, initialTotalState: initialTotalState, H: H, noises: noises, noiseShifts: noiseShifts, equationType: .nonLinearNormalized, shiftType: shiftType, jumpOperators: jumpOperators, customOperators: customOperators, stepSize: stepSize, forEach: operation)
     }
 }

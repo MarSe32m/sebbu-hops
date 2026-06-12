@@ -15,6 +15,9 @@ extension UnsafeMutablePointer {
     }
 }
 
+#if swift(>=6.5)
+#warning("TODO: Check whether theses Span / MutableSpan inititalizers are needed anymore")
+#endif
 extension Span where Element: ~Copyable {
     @inlinable
     @_lifetime(borrow value)

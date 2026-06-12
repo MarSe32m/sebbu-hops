@@ -281,7 +281,7 @@ private func solveModelWithUnifiedHOPS(endTime: Double, omegaX: Double, g: Doubl
 //                return O
 //            }
             //return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: [z1, z2], shiftType: .meanField, stepSize: 0.01)
-            return hierarchy.solveNonLinear(end: endTime, initialState: .init(copying: initialState), H: .init(copying: H), noises: [z1, z2].span, shiftType: .meanField, stepSize: 0.01)
+            return hierarchy.solve(end: endTime, initialState: initialState, H: H, noises: [z1, z2].span, equationType: .nonLinear, shiftType: .meanField, stepSize: 0.01)
 //            return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: [z1, z2], stepSize: 0.01)
 //            return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, shiftType: .meanField, customOperators: [customOperator], stepSize: 0.075)
         }

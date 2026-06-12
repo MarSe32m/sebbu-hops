@@ -47,14 +47,12 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     let unifiedHierarchy = UnifiedHOPSHierarchy(dimension: 2, L: L, bathCorrelationFunctions: .init(G: G, W: W), depth: 6)
     
     let H: Matrix<Complex<Double>> = .init(elements: [.zero, Complex(0.175 / 2), Complex(0.175 / 2), Complex(0.1)], rows: 2, columns: 2)
-    let _H: UniqueMatrix<Complex<Double>> = .init(copying: H)
     let zGenerator = GaussianFFTNoiseProcessGenerator(tMax: endTime) { omega in
         spectralDensity(omega: omega, A: A, omegaC: omegaC)
     }
 //    let zGenerator = ZeroNoiseProcessGenerator()
     let whiteNoiseGenerator = PreSampledGaussianWhiteNoiseProcessGenerator(mean: 0, deviation: .sqrt(0.5 * gamma), start: 0, end: endTime, step: 0.01)
     let initialState: Vector<Complex<Double>> = [Complex((0.5).squareRoot()), Complex((0.5).squareRoot())]
-    let _initialState: UniqueVector<Complex<Double>> = .init(copying: initialState)
     
     let sigmaMinus: Matrix<Complex<Double>> = .init(elements: [.zero, .one, .zero, .zero], rows: 2, columns: 2)
     let sigmaPlus = sigmaMinus.conjugateTranspose
@@ -76,28 +74,28 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
         let trajectoriesToCompute = Swift.min(realizations - trajectoriesComputed, batchSize)
         trajectoriesComputed += trajectoriesToCompute
         let batchComputationTime = ContinuousClock().measure {
-            let noises = zGenerator.generate(count: trajectoriesToCompute)
-            let whiteNoises = whiteNoiseGenerator.generate(count: trajectoriesToCompute)
-            let linearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
-                let customOperator: @Sendable (Double, Vector<Complex<Double>>) -> Matrix<Complex<Double>> = { t, state in
-                    gammaSigmaPlusSigmaMinus
-                }
-                return hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, z: z, whiteNoise: w, diffusionOperator: sigmaMinus, customOperators: [customOperator], stepSize: stepSize)
-            }
-            for (tSpace, trajectory) in linearTrajectories {
-                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory)
-                if linearRho.isEmpty {
-                    linearTSpace = tSpace
-                    linearRho = _rho.map { $0 / Double(realizations) }
-                } else {
-                    for i in 0..<_rho.count {
-                        linearRho[i].add(_rho[i], multiplied: 1.0 / Double(realizations))
-                    }
-                }
-            }
+            let noises = zGenerator.generateParallel(count: trajectoriesToCompute)
+            let whiteNoises = whiteNoiseGenerator.generateParallel(count: trajectoriesToCompute)
+//            let linearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
+//                let customOperator: @Sendable (Double, Vector<Complex<Double>>) -> Matrix<Complex<Double>> = { t, state in
+//                    gammaSigmaPlusSigmaMinus
+//                }
+//                return hierarchy.solveLinear(end: endTime, initialState: initialState, H: H, z: z, whiteNoise: w, diffusionOperator: sigmaMinus, customOperators: [customOperator], stepSize: stepSize)
+//            }
+//            for (tSpace, trajectory) in linearTrajectories {
+//                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory)
+//                if linearRho.isEmpty {
+//                    linearTSpace = tSpace
+//                    linearRho = _rho.map { $0 / Double(realizations) }
+//                } else {
+//                    for i in 0..<_rho.count {
+//                        linearRho[i].add(_rho[i], multiplied: 1.0 / Double(realizations))
+//                    }
+//                }
+//            }
             let unifiedLinearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
                 let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(/*noise: w, */rate: gamma, jumpOperator: sigmaMinus)
-                return unifiedHierarchy.solveLinear(end: endTime, initialState: _initialState, H: _H, noises: z, jumpOperators: jumpOperator, stepSize: stepSize)
+                return unifiedHierarchy.solve(end: endTime, initialState: initialState, H: H, noises: Span(z), equationType: .linear, jumpOperators: Span(jumpOperator), stepSize: stepSize)
             }
             for trajectory in unifiedLinearTrajectories {
                 let _rho = trajectory.densityMatrix(normalized: false)
@@ -113,7 +111,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
             
             let unifiedLinearShiftedTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
                 let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(/*noise: w, */rate: gamma, jumpOperator: sigmaMinus)
-                return unifiedHierarchy.solveLinear(end: endTime, initialState: _initialState, H: _H, noises: z, shiftType: .meanField, jumpOperators: jumpOperator, stepSize: stepSize)
+                return unifiedHierarchy.solve(end: endTime, initialState: initialState, H: H, noises: Span(z), equationType: .linear, shiftType: .meanField, jumpOperators: Span(jumpOperator), stepSize: stepSize)
             }
             for trajectory in unifiedLinearShiftedTrajectories {
                 let _rho = trajectory.densityMatrix(normalized: false)
@@ -146,31 +144,31 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
         let batchComputationTime = ContinuousClock().measure {
             let noises = zGenerator.generateParallel(count: trajectoriesToCompute)
             let whiteNoises = whiteNoiseGenerator.generateParallel(count: trajectoriesToCompute)
-            let nonLinearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
-                nonisolated(unsafe) var _O = sigmaMinus
-                let customOperator: (Double, Vector<Complex<Double>>) -> Matrix<Complex<Double>> = { t, state in
-                    _O.copyElements(from: gammaSigmaPlusSigmaMinus)
-                    let factor = gamma * state.inner(state, metric: sigmaPlus) / state.normSquared
-                    _O.add(sigmaMinus, multiplied: factor)
-                    return _O
-                }
-                return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, whiteNoise: w, diffusionOperator: sigmaMinus, shiftType: .none, customOperators: [customOperator], stepSize: stepSize)
-            }
-            for (tSpace, trajectory) in nonLinearTrajectories {
-                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalize: true)
-                if nonLinearRho.isEmpty {
-                    nonLinearTSpace = tSpace
-                    nonLinearRho = _rho.map { $0 / Double(realizations) }
-                } else {
-                    for i in 0..<_rho.count {
-                        nonLinearRho[i].add(_rho[i], multiplied: 1.0 / Double(realizations))
-                    }
-                }
-            }
+//            let nonLinearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
+//                nonisolated(unsafe) var _O = sigmaMinus
+//                let customOperator: (Double, Vector<Complex<Double>>) -> Matrix<Complex<Double>> = { t, state in
+//                    _O.copyElements(from: gammaSigmaPlusSigmaMinus)
+//                    let factor = gamma * state.inner(state, metric: sigmaPlus) / state.normSquared
+//                    _O.add(sigmaMinus, multiplied: factor)
+//                    return _O
+//                }
+//                return hierarchy.solveNonLinear(end: endTime, initialState: initialState, H: H, z: z, whiteNoise: w, diffusionOperator: sigmaMinus, shiftType: .none, customOperators: [customOperator], stepSize: stepSize)
+//            }
+//            for (tSpace, trajectory) in nonLinearTrajectories {
+//                let _rho = hierarchy.mapTrajectoryToDensityMatrix(trajectory, normalize: true)
+//                if nonLinearRho.isEmpty {
+//                    nonLinearTSpace = tSpace
+//                    nonLinearRho = _rho.map { $0 / Double(realizations) }
+//                } else {
+//                    for i in 0..<_rho.count {
+//                        nonLinearRho[i].add(_rho[i], multiplied: 1.0 / Double(realizations))
+//                    }
+//                }
+//            }
             
             let unifiedNonLinearTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
                 let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(/*noise: w,*/ rate: gamma, jumpOperator: sigmaMinus)
-                return unifiedHierarchy.solveNonLinear(end: endTime, initialState: _initialState, H: _H, noises: z, shiftType: .none, jumpOperators: jumpOperator, stepSize: stepSize)
+                return unifiedHierarchy.solve(end: endTime, initialState: initialState, H: H, noises: Span(z), equationType: .nonLinear, shiftType: .none, jumpOperators: Span(jumpOperator), stepSize: stepSize)
             }
             for trajectory in unifiedNonLinearTrajectories {
                 let _rho = trajectory.densityMatrix(normalized: true)
@@ -186,7 +184,7 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
             
             let unifiedNonLinearNormalizedTrajectories = zip(noises, whiteNoises).parallelMap { z, w in
                 let jumpOperator = UnifiedHOPSHierarchy.JumpOperator(/*noise: w, */rate: gamma, jumpOperator: sigmaMinus)
-                return unifiedHierarchy.solveNonLinearNormalized(end: endTime, initialState: _initialState, H: _H, noises: z, shiftType: .meanField, jumpOperators: jumpOperator, stepSize: stepSize)
+                return unifiedHierarchy.solve(end: endTime, initialState: initialState, H: H, noises: Span(z), equationType: .nonLinearNormalized, shiftType: .meanField, jumpOperators: Span(jumpOperator), stepSize: stepSize)
             }
             for trajectory in unifiedNonLinearNormalizedTrajectories {
                 let _rho = trajectory.densityMatrix(normalized: true)
@@ -209,9 +207,9 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     
     let (masterEquationTSpace, rho) = masterEquationSolution(endTime: endTime, initialRho: initialState.outer(initialState), H: H, gamma: gamma, O: sigmaMinus)
     
-    let linearX = linearRho.map { 2 * $0[0, 1].real }
-    let linearY = linearRho.map { 2 * $0[0, 1].imaginary }
-    let linearZ = linearRho.map { $0[0, 0].real - $0[1, 1].real }
+//    let linearX = linearRho.map { 2 * $0[0, 1].real }
+//    let linearY = linearRho.map { 2 * $0[0, 1].imaginary }
+//    let linearZ = linearRho.map { $0[0, 0].real - $0[1, 1].real }
     
     let linearUnifiedX = linearUnifiedRho.map { 2 * $0[0, 1].real }
     let linearUnifiedY = linearUnifiedRho.map { 2 * $0[0, 1].imaginary }
@@ -221,9 +219,9 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     let linearUnifiedShiftedY = linearUnifiedShiftedRho.map { 2 * $0[0, 1].imaginary }
     let linearUnifiedShiftedZ = linearUnifiedShiftedRho.map { $0[0, 0].real - $0[1, 1].real }
     
-    let nonLinearX = nonLinearRho.map { 2 * $0[0, 1].real }
-    let nonLinearY = nonLinearRho.map { 2 * $0[0, 1].imaginary }
-    let nonLinearZ = nonLinearRho.map { $0[0, 0].real - $0[1, 1].real }
+//    let nonLinearX = nonLinearRho.map { 2 * $0[0, 1].real }
+//    let nonLinearY = nonLinearRho.map { 2 * $0[0, 1].imaginary }
+//    let nonLinearZ = nonLinearRho.map { $0[0, 0].real - $0[1, 1].real }
     
     let nonLinearUnifiedX = nonLinearUnifiedRho.map { 2 * $0[0, 1].real }
     let nonLinearUnifiedY = nonLinearUnifiedRho.map { 2 * $0[0, 1].imaginary }
@@ -238,9 +236,9 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     let masterEquationZ = rho.map { $0[0, 0].real - $0[1, 1].real }
     
     plt.figure()
-    plt.plot(x: linearTSpace, y: linearX, label: "Lin <x>")
-    plt.plot(x: linearTSpace, y: linearY, label: "Lin <y>")
-    plt.plot(x: linearTSpace, y: linearZ, label: "Lin <z>")
+//    plt.plot(x: linearTSpace, y: linearX, label: "Lin <x>")
+//    plt.plot(x: linearTSpace, y: linearY, label: "Lin <y>")
+//    plt.plot(x: linearTSpace, y: linearZ, label: "Lin <z>")
     
     plt.plot(x: linearUnifiedTSpace, y: linearUnifiedX, label: "Lin uni <x>", linestyle: "-.")
     plt.plot(x: linearUnifiedTSpace, y: linearUnifiedY, label: "Lin uni <y>", linestyle: "-.")
@@ -261,9 +259,9 @@ public func radiativeDampingExample(realizations: Int, endTime: Double = 10.0) {
     plt.close()
     
     plt.figure()
-    plt.plot(x: nonLinearTSpace, y: nonLinearX, label: "Non-lin <x>")
-    plt.plot(x: nonLinearTSpace, y: nonLinearY, label: "Non-lin <y>")
-    plt.plot(x: nonLinearTSpace, y: nonLinearZ, label: "Non-lin <z>")
+//    plt.plot(x: nonLinearTSpace, y: nonLinearX, label: "Non-lin <x>")
+//    plt.plot(x: nonLinearTSpace, y: nonLinearY, label: "Non-lin <y>")
+//    plt.plot(x: nonLinearTSpace, y: nonLinearZ, label: "Non-lin <z>")
     
     plt.plot(x: nonLinearUnifiedTSpace, y: nonLinearUnifiedX, label: "Non-lin uni <x>", linestyle: "-.")
     plt.plot(x: nonLinearUnifiedTSpace, y: nonLinearUnifiedY, label: "Non-lin uni <y>", linestyle: "-.")

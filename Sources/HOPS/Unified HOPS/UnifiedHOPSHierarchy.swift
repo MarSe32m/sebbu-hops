@@ -30,6 +30,18 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
         //case exact
     }
     
+    /// Equation type
+    public enum EquationType {
+        /// Solve the linear HOPS equation
+        case linear
+        
+        /// Solve the non-linear HOPS equation
+        case nonLinear
+        
+        /// Solve the non-linear normalized HOPS equation
+        case nonLinearNormalized
+    }
+    
     // Array containing the dot products kW
     @usableFromInline
     internal let kWArray: UniqueArray<Complex<Double>>
@@ -181,9 +193,9 @@ public struct UnifiedHOPSHierarchy: ~Copyable, Sendable {
         for (i, bcfRow) in bathCorrelationFunctions.enumerated() {
             _G.append([])
             _W.append([])
-            for bcfColumn in bcfRow {
-                _G[i].append(bcfColumn.G)
-                _W[i].append(bcfColumn.W)
+            for bcfEntry in bcfRow {
+                _G[i].append(bcfEntry.G)
+                _W[i].append(bcfEntry.W)
             }
         }
         

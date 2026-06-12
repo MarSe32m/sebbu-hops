@@ -140,13 +140,13 @@ public extension UnifiedHOPSHierarchy {
         end: Double,
         initialState: borrowing UniqueVector<Complex<Double>>,
         H: borrowing UniqueMatrix<Complex<Double>>,
-        noises: Noise,
+        noises: Noise...,
         shiftType: ShiftType = .none,
         customOperators: consuming Span<CustomOperator> = Span(),
         stepSize: Double = 0.01,
         includeHierarchy: Bool = false
     ) -> Trajectory where Noise: ComplexNoiseProcess {
-        return solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: [noises].span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
+        return solveLinear(start: start, end: end, initialState: initialState, H: { _, Heff in Heff.add(H) }, noises: noises.span, shiftType: shiftType, customOperators: customOperators, stepSize: stepSize, includeHierarchy: includeHierarchy)
     }
     
     /// Solve the linear HOPS equation for this hierarchy structure
